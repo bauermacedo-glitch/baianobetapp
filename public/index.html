@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BaianoBet Pro - Bolão de Apostas</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .header { text-align: center; color: white; margin-bottom: 30px; }
+    .header h1 { font-size: 48px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    .card { background: white; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+    input, select, textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; }
+    button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
+    button:hover { transform: translateY(-2px); }
+    .btn-secondary { background: #f0f0f0; color: #333; margin-left: 10px; }
+    .btn-secondary:hover { background: #e0e0e0; }
+    .btn-danger { background: #ff6b6b; }
+    .btn-danger:hover { background: #ee5a52; }
+    .games-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .game-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.3s; }
+    .game-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .game-title { font-size: 20px; font-weight: 700; color: #667eea; margin-bottom: 10px; }
+    .game-status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+    .status-open { background: #d4edda; color: #155724; }
+    .status-closed { background: #f8d7da; color: #721c24; }
+    .section-title { font-size: 18px; font-weight: 700; margin: 20px 0 15px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+    .result-display { background: #f0f7ff; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea; }
+    .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f5c6cb; }
+    .success { background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #c3e6cb; }
+    .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .three-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .four-cols { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
+    .kpi-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; text-align: center; }
+    .kpi-value { font-size: 32px; font-weight: 700; margin: 10px 0; }
+    .kpi-label { font-size: 14px; opacity: 0.9; }
+    .leaderboard-item { display: grid; grid-template-columns: 40px 1fr auto; gap: 15px; align-items: center; padding: 15px; border-bottom: 1px solid #e0e0e0; }
+    .rank-badge { background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .user-stats { background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
+    .stat-label { font-weight: 600; color: #666; }
+    .stat-value { color: #667eea; font-weight: 700; }
+    .bet-card { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea; }
+    .tab-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; flex-wrap: wrap; }
+    .tab { padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: 600; color: #999; border-bottom: 3px solid transparent; }
+    .tab.active { color: #667eea; border-bottom-color: #667eea; }
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: white; border-radius: 12px; padding: 30px; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .modal-title { font-size: 24px; font-weight: 700; margin-bottom: 20px; }
+    .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-buttons button { flex: 1; }
+    .winner-badge { background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333; padding: 12px 20px; border-radius: 8px; font-weight: 700; text-align: center; margin: 20px 0; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const API_URL = '/api';
+
+    const PLAYERS = {
+      brasil: ["Ninguém", "Alisson", "Ederson", "Weverton", "Alex Sandro", "Bremer", "Danilo", "Douglas Santos", "Gabriel Magalhães", "Ibañez", "Léo Pereira", "Marquinhos", "Wesley", "Bruno Guimarães", "Casemiro", "Danilo Santos", "Fabinho", "Lucas Paquetá", "Endrick", "Gabriel Martinelli", "Igor Thiago", "Luiz Henrique", "Matheus Cunha", "Neymar", "Raphinha", "Rayan", "Vini Jr."],
+      marrocos: ["Ninguém", "Bounou", "El Kajoui", "Tagnaouti", "Mazraoui", "Salah-Eddine", "Belammari", "Hakimi", "El Ouahdi", "Aguerd", "Riad", "Halhal", "Diop", "El Mourabet", "Bouaddi", "El Aynaoui", "Amrabat", "Ounahi", "El Khannouss", "Saibari", "Ez Abde", "Talbi", "Rahimi", "El Kaabi", "Brahim Díaz", "Gessime", "Echghouyabe"]
+    };
+
+    function BaianoBetApp() {
+      const [token, setToken] = useState(localStorage.getItem('token'));
+      const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
+      const [view, setView] = useState('games');
+      const [games, setGames] = useState([]);
+      const [selectedGame, setSelectedGame] = useState(null);
+      const [gameDetails, setGameDetails] = useState(null);
+      const [error, setError] = useState('');
+      const [success, setSuccess] = useState('');
+      const [goalsA, setGoalsA] = useState(0);
+      const [goalsB, setGoalsB] = useState(0);
+      const [stats, setStats] = useState(null);
+      const [leaderboard, setLeaderboard] = useState([]);
+      const [userStats, setUserStats] = useState(null);
+      const [confirmModal, setConfirmModal] = useState(null);
+      const isAdmin = user?.is_admin || false;
+
+      useEffect(() => {
+        if (token) {
+          fetchGames();
+          if (isAdmin) fetchStats();
+          fetchLeaderboard();
+          fetchUserStats();
+        }
+      }, [token]);
+
+      const fetchGames = async () => {
+        try {
+          const res = await fetch(`${API_URL}/games`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          setGames(data);
+        } catch (err) {
+          setError('Erro ao carregar jogos');
+        }
+      };
+
+      const fetchStats = async () => {
+        try {
+          const res = await fetch(`${API_URL}/stats`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          setStats(data);
+        } catch (err) {
+          console.error('Erro ao carregar stats');
+        }
+      };
+
+      const fetchLeaderboard = async () => {
+        try {
+          const leaderRes = await fetch(`${API_URL}/leaderboard`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const leaderData = await leaderRes.json();
+          setLeaderboard(leaderData);
+        } catch (err) {
+          console.error('Erro ao carregar leaderboard');
+        }
+      };
+
+      const fetchUserStats = async () => {
+        if (!user) return;
+        try {
+          const res = await fetch(`${API_URL}/user-stats/${user.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          setUserStats(data);
+        } catch (err) {
+          console.error('Erro ao carregar user stats');
+        }
+      };
+
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        try {
+          const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              username: e.target.username.value,
+              password: e.target.password.value 
+            })
+          });
+          const data = await res.json();
+          if (data.token) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            setToken(data.token);
+            setUser(data.user);
+            setSuccess('Login realizado! 🎉');
+          } else {
+            setError(data.error || 'Erro no login');
+          }
+        } catch (err) {
+          setError('Erro ao conectar');
+        }
+      };
+
+      const handleRegister = async (e) => {
+        e.preventDefault();
+        try {
+          const res = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: e.target.username.value,
+              password: e.target.password.value
+            })
+          });
+          const data = await res.json();
+          if (data.token) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            setToken(data.token);
+            setUser(data.user);
+            setSuccess('Conta criada! Bem-vindo 🎉');
+          } else {
+            setError(data.error || 'Erro no registro');
+          }
+        } catch (err) {
+          setError('Erro ao conectar');
+        }
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+        setSelectedGame(null);
+        setGameDetails(null);
+        setView('games');
+      };
+
+      const handleCreateGame = async (e) => {
+        e.preventDefault();
+        try {
+          const res = await fetch(`${API_URL}/games`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              name: e.target.name.value,
+              team_a: e.target.team_a.value,
+              team_b: e.target.team_b.value,
+              amount: e.target.amount.value,
+              round: e.target.round?.value || null
+            })
+          });
+          const data = await res.json();
+          if (data.id) {
+            setSuccess('Jogo criado! ✅');
+            e.target.reset();
+            fetchGames();
+            setView('games');
+          } else {
+            setError(data.error);
+          }
+        } catch (err) {
+          setError('Erro ao criar jogo');
+        }
+      };
+
+      const selectGame = async (gameId) => {
+        try {
+          const res = await fetch(`${API_URL}/games/${gameId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          setSelectedGame(gameId);
+          setGameDetails(data);
+          setView('game-detail');
+          setGoalsA(0);
+          setGoalsB(0);
+        } catch (err) {
+          setError('Erro ao carregar jogo');
+        }
+      };
+
+      const handlePlaceBet = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const result_a = parseInt(formData.get('result_a'));
+        const result_b = parseInt(formData.get('result_b'));
+        
+        let goals_a = [];
+        for (let i = 0; i < result_a; i++) {
+          const val = formData.get(`gol_a_${i}`);
+          if (val) goals_a.push(val);
+        }
+        
+        let goals_b = [];
+        for (let i = 0; i < result_b; i++) {
+          const val = formData.get(`gol_b_${i}`);
+          if (val) goals_b.push(val);
+        }
+
+        try {
+          const res = await fetch(`${API_URL}/games/${selectedGame}/bets`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              result_a,
+              result_b,
+              goals_team_a: goals_a.join(', '),
+              goals_team_b: goals_b.join(', '),
+              yellow_a: formData.get('yellow_a'),
+              red_a: formData.get('red_a'),
+              yellow_b: formData.get('yellow_b'),
+              red_b: formData.get('red_b')
+            })
+          });
+          const data = await res.json();
+          if (data.id) {
+            setSuccess('Aposta registrada! 🎯');
+            e.target.reset();
+            selectGame(selectedGame);
+          } else {
+            setError(data.error);
+          }
+        } catch (err) {
+          setError('Erro ao registrar aposta');
+        }
+      };
+
+      const handleCloseGame = async (resultA, resultB, goalsA, goalsB, yellowA, redA, yellowB, redB) => {
+        try {
+          const res = await fetch(`${API_URL}/games/${selectedGame}/close`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              result_a: resultA,
+              result_b: resultB,
+              goals_a: goalsA,
+              goals_b: goalsB,
+              yellow_a: yellowA,
+              red_a: redA,
+              yellow_b: yellowB,
+              red_b: redB
+            })
+          });
+          const data = await res.json();
+          if (data.mainWinner) {
+            setSuccess(`🎉 ${data.mainWinner.username} ganhou €${data.mainPrize.toFixed(2)}!`);
+          } else {
+            setSuccess('Jogo fechado! Nenhum vencedor para o prêmio principal.');
+          }
+          setConfirmModal(null);
+          fetchGames();
+          selectGame(selectedGame);
+        } catch (err) {
+          setError('Erro ao fechar jogo');
+        }
+      };
+
+      const handleExportCSV = async () => {
+        try {
+          const res = await fetch(`${API_URL}/export-csv`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const csv = await res.text();
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'baianobetapp_apostas.csv';
+          a.click();
+          setSuccess('CSV exportado! ✅');
+        } catch (err) {
+          setError('Erro ao exportar CSV');
+        }
+      };
+
+      if (!token) {
+        return (
+          <div className="container">
+            <div className="header">
+              <h1>🎲 BaianoBet PRO</h1>
+              <p>Bolão profissional com análises e leaderboards</p>
+            </div>
+
+            <div style={{ maxWidth: 400, margin: '0 auto' }}>
+              <div className="card">
+                <h2 style={{ marginBottom: 30, textAlign: 'center' }}>Login</h2>
+                {error && <div className="error">{error}</div>}
+                {success && <div className="success">{success}</div>}
+                <form onSubmit={handleLogin}>
+                  <div className="form-group">
+                    <label>Usuário</label>
+                    <input type="text" name="username" required />
+                  </div>
+                  <div className="form-group">
+                    <label>Senha</label>
+                    <input type="password" name="password" required />
+                  </div>
+                  <button type="submit" style={{ width: '100%' }}>Entrar</button>
+                </form>
+              </div>
+
+              <div className="card">
+                <h2 style={{ marginBottom: 30, textAlign: 'center' }}>Criar Conta</h2>
+                <form onSubmit={handleRegister}>
+                  <div className="form-group">
+                    <label>Usuário</label>
+                    <input type="text" name="username" required />
+                  </div>
+                  <div className="form-group">
+                    <label>Senha</label>
+                    <input type="password" name="password" required />
+                  </div>
+                  <button type="submit" style={{ width: '100%' }}>Registrar</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="container">
+          <div className="header">
+            <h1>🎲 BaianoBet PRO</h1>
+            <p>Bem-vindo, <strong>{user.username}</strong>{isAdmin && <span style={{ marginLeft: 10, background: '#ffd700', color: '#333', padding: '4px 12px', borderRadius: 4, fontWeight: 700, fontSize: 12 }}>👑 ADMIN</span>}</p>
+            <button onClick={handleLogout} style={{ marginTop: 20 }} className="btn-secondary">Sair</button>
+          </div>
+
+          {error && <div className="card error">{error}</div>}
+          {success && <div className="card success">{success}</div>}
+
+          {view === 'games' && (
+            <>
+              <div className="tab-nav">
+                <button className="tab active" onClick={() => setView('games')}>📋 Jogos</button>
+                <button className="tab" onClick={() => setView('leaderboard')}>🏆 Leaderboard</button>
+                <button className="tab" onClick={() => setView('my-stats')}>📊 Minhas Stats</button>
+                {isAdmin && <button className="tab" onClick={() => setView('admin-dashboard')}>⚙️ Dashboard Admin</button>}
+              </div>
+
+              {userStats && view === 'games' && (
+                <div className="card">
+                  <h3>Suas Estatísticas</h3>
+                  <div className="three-cols" style={{ marginTop: 15 }}>
+                    <div className="user-stats" style={{ background: '#f0f7ff', borderLeft: '4px solid #667eea' }}>
+                      <div className="stat-value" style={{ fontSize: 28 }}>
+                        {userStats.total_bets || 0}
+                      </div>
+                      <div className="stat-label">Apostas</div>
+                    </div>
+                    <div className="user-stats" style={{ background: '#fff0f0', borderLeft: '4px solid #ff6b6b' }}>
+                      <div className="stat-value" style={{ fontSize: 28, color: '#ff6b6b' }}>
+                        {userStats.wins || 0}
+                      </div>
+                      <div className="stat-label">Vitórias</div>
+                    </div>
+                    <div className="user-stats" style={{ background: '#f0fff0', borderLeft: '4px solid #51cf66' }}>
+                      <div className="stat-value" style={{ fontSize: 28, color: '#51cf66' }}>
+                        €{(userStats.total_prizes || 0).toFixed(2)}
+                      </div>
+                      <div className="stat-label">Ganhos</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="card">
+                <h2>📋 Seus Jogos</h2>
+                {games.length === 0 ? (
+                  <p>Nenhum jogo ainda</p>
+                ) : (
+                  <div className="games-list">
+                    {games.map(game => (
+                      <div key={game.id} className="game-card" onClick={() => selectGame(game.id)}>
+                        <div className={`game-status ${game.status === 'open' ? 'status-open' : 'status-closed'}`}>
+                          {game.status === 'open' ? '🟢 Aberto' : '🔴 Fechado'}
+                        </div>
+                        <div className="game-title">{game.name}</div>
+                        <div style={{ fontSize: 18, margin: '10px 0' }}>
+                          <strong>{game.team_a}</strong> vs <strong>{game.team_b}</strong>
+                        </div>
+                        {game.status === 'closed' && game.result_a !== null && (
+                          <div className="result-display" style={{ background: '#fffacd', borderLeft: '4px solid #ffd700' }}>
+                            Resultado: <strong>{game.result_a} x {game.result_b}</strong>
+                          </div>
+                        )}
+                        <button style={{ marginTop: 15, width: '100%' }} onClick={(e) => {
+                          e.stopPropagation();
+                          selectGame(game.id);
+                        }}>Ver Detalhes →</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {isAdmin && (
+                <div className="card">
+                  <h2 style={{ marginBottom: 20 }}>➕ Criar Novo Jogo</h2>
+                  <form onSubmit={handleCreateGame}>
+                    <div className="form-group">
+                      <label>Nome do Jogo</label>
+                      <input type="text" name="name" placeholder="Copa 2026 - Final" required />
+                    </div>
+                    <div className="two-cols">
+                      <div className="form-group">
+                        <label>Time A</label>
+                        <input type="text" name="team_a" placeholder="Brasil" required />
+                      </div>
+                      <div className="form-group">
+                        <label>Time B</label>
+                        <input type="text" name="team_b" placeholder="Marrocos" required />
+                      </div>
+                    </div>
+                    <div className="two-cols">
+                      <div className="form-group">
+                        <label>Seu Aporte (€)</label>
+                        <input type="number" name="amount" step="0.50" placeholder="10" required />
+                      </div>
+                      <div className="form-group">
+                        <label>Fase/Round (opcional)</label>
+                        <input type="text" name="round" placeholder="Quartas de Final" />
+                      </div>
+                    </div>
+                    <button type="submit">Criar Jogo 🎯</button>
+                  </form>
+                </div>
+              )}
+            </>
+          )}
+
+          {view === 'leaderboard' && (
+            <div className="card">
+              <button onClick={() => setView('games')} className="btn-secondary">← Voltar</button>
+              <h2 style={{ marginTop: 20, marginBottom: 20 }}>🏆 Leaderboard</h2>
+              {leaderboard.length === 0 ? (
+                <p>Sem dados ainda</p>
+              ) : (
+                leaderboard.map((player, idx) => (
+                  <div key={player.id} className="leaderboard-item">
+                    <div className="rank-badge">#{idx + 1}</div>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{player.username}</div>
+                      <div style={{ fontSize: 12, color: '#999' }}>
+                        {player.bets_made} apostas • {player.wins} vitórias • Taxa: {player.win_rate || 0}%
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 700, color: '#51cf66', fontSize: 18 }}>
+                        €{(player.total_won || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {view === 'my-stats' && (
+            <div className="card">
+              <button onClick={() => setView('games')} className="btn-secondary">← Voltar</button>
+              <h2 style={{ marginTop: 20, marginBottom: 20 }}>📊 Suas Estatísticas</h2>
+              {userStats ? (
+                <div>
+                  <div className="four-cols" style={{ marginBottom: 20 }}>
+                    <div className="kpi-card">
+                      <div className="kpi-label">Total de Apostas</div>
+                      <div className="kpi-value">{userStats.total_bets || 0}</div>
+                    </div>
+                    <div className="kpi-card">
+                      <div className="kpi-label">Vitórias</div>
+                      <div className="kpi-value">{userStats.wins || 0}</div>
+                    </div>
+                    <div className="kpi-card">
+                      <div className="kpi-label">Prêmios Ganhos</div>
+                      <div className="kpi-value">€{(userStats.total_prizes || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="kpi-card">
+                      <div className="kpi-label">Prêmios Zueira</div>
+                      <div className="kpi-value">€{(userStats.fun_prizes || 0).toFixed(2)}</div>
+                    </div>
+                  </div>
+                  <div className="user-stats">
+                    <div className="stat-row">
+                      <span className="stat-label">Taxa de Acerto</span>
+                      <span className="stat-value">
+                        {userStats.total_bets > 0 ? ((userStats.wins / userStats.total_bets) * 100).toFixed(1) : 0}%
+                      </span>
+                    </div>
+                    <div className="stat-row">
+                      <span className="stat-label">Ganhos Totais</span>
+                      <span className="stat-value">
+                        €{((userStats.total_prizes || 0) + (userStats.fun_prizes || 0)).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p>Carregando...</p>
+              )}
+            </div>
+          )}
+
+          {view === 'admin-dashboard' && isAdmin && (
+            <div>
+              <button onClick={() => setView('games')} className="btn-secondary">← Voltar</button>
+              <div style={{ marginTop: 20 }}>
+                <h2 style={{ marginBottom: 20 }}>⚙️ Dashboard Admin</h2>
+                {stats && (
+                  <div className="four-cols" style={{ marginBottom: 20 }}>
+                    <div className="kpi-card">
+                      <div className="kpi-label">Total de Jogos</div>
+                      <div className="kpi-value">{stats.total_games}</div>
+                    </div>
+                    <div className="kpi-card">
+                      <div className="kpi-label">Total Arrecadado</div>
+                      <div className="kpi-value">€{(stats.total_raised || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="kpi-card">
+                      <div className="kpi-label">Maior Prêmio</div>
+                      <div className="kpi-value">€{(stats.largest_prize || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="kpi-card">
+                      <div className="kpi-label">Total de Jogadores</div>
+                      <div className="kpi-value">{stats.total_players}</div>
+                    </div>
+                  </div>
+                )}
+
+                {stats?.top_winner && (
+                  <div className="card" style={{ background: '#fffacd', border: '2px solid #ffd700' }}>
+                    <h3>👑 Maior Vencedor</h3>
+                    <div className="winner-badge">
+                      {stats.top_winner.username}
+                    </div>
+                    <p style={{ textAlign: 'center', color: '#666' }}>
+                      Total ganho: €{(stats.top_winner.total_won || 0).toFixed(2)}
+                    </p>
+                  </div>
+                )}
+
+                <div className="card">
+                  <h3>📥 Exportar Dados</h3>
+                  <p style={{ color: '#666', marginBottom: 15 }}>Baixe um arquivo CSV com todas as apostas e resultados.</p>
+                  <button onClick={handleExportCSV} style={{ background: '#51cf66' }}>
+                    📊 Exportar CSV
+                  </button>
+                </div>
+
+                <div className="card">
+                  <h3>📊 Análise de Apostas</h3>
+                  {games.length === 0 ? (
+                    <p>Nenhum jogo criado ainda</p>
+                  ) : (
+                    games.map(game => (
+                      <div key={game.id} style={{ marginBottom: 30, padding: 20, background: '#f9f9f9', borderRadius: 8, border: '1px solid #e0e0e0' }}>
+                        <h4>{game.name}</h4>
+                        <p style={{ color: '#666', marginBottom: 10 }}>
+                          {game.team_a} vs {game.team_b} • {game.status === 'open' ? '🟢 Aberto' : '🔴 Fechado'}
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
+                          <div>
+                            <strong>Status:</strong> {game.status === 'open' ? 'Aceitando apostas' : 'Fechado'}
+                          </div>
+                          <div>
+                            <strong>Resultado:</strong> {game.result_a !== null ? `${game.result_a} x ${game.result_b}` : 'Não definido'}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {view === 'game-detail' && gameDetails && (
+            <>
+              <div className="card">
+                <button onClick={() => setView('games')} className="btn-secondary">← Voltar</button>
+                <h2 style={{ marginTop: 20, marginBottom: 20 }}>{gameDetails.game.name}</h2>
+                
+                <div className="result-display">
+                  <h3>{gameDetails.game.team_a} vs {gameDetails.game.team_b}</h3>
+                  {gameDetails.game.status === 'closed' && gameDetails.game.result_a !== null && (
+                    <h2 style={{ marginTop: 10, color: '#667eea', fontSize: 36 }}>
+                      {gameDetails.game.result_a} x {gameDetails.game.result_b}
+                    </h2>
+                  )}
+                </div>
+
+                {gameDetails.game.winner_id && (
+                  <div className="winner-badge">
+                    🎉 Vencedor registrado!
+                  </div>
+                )}
+
+                {gameDetails.contributors.length > 0 && (
+                  <div style={{ marginTop: 20 }}>
+                    <h3 style={{ marginBottom: 10 }}>Participantes (Total: €{gameDetails.contributors.reduce((a, c) => a + parseFloat(c.amount), 0).toFixed(2)})</h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                      {gameDetails.contributors.map(c => (
+                        <span key={c.id} style={{ background: '#e0e0e0', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>
+                          {c.username}: €{parseFloat(c.amount).toFixed(2)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {gameDetails.game.status === 'open' && !isAdmin && (
+                  <div style={{ background: '#f9f9f9', padding: 20, borderRadius: 8, margin: '20px 0' }}>
+                    <h3 className="section-title">Sua Aposta</h3>
+                    <form onSubmit={handlePlaceBet}>
+                      <label style={{ marginBottom: 10, display: 'block', fontWeight: 700 }}>Gols - Resultado Final</label>
+                      <div className="three-cols">
+                        <div className="form-group">
+                          <label>{gameDetails.game.team_a}</label>
+                          <input 
+                            type="number" 
+                            name="result_a" 
+                            min="0" 
+                            max="9" 
+                            value={goalsA}
+                            onChange={(e) => setGoalsA(parseInt(e.target.value))}
+                            required 
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: '20px' }}>
+                          <h2 style={{ color: '#667eea' }}>X</h2>
+                        </div>
+                        <div className="form-group">
+                          <label>{gameDetails.game.team_b}</label>
+                          <input 
+                            type="number" 
+                            name="result_b" 
+                            min="0" 
+                            max="9"
+                            value={goalsB}
+                            onChange={(e) => setGoalsB(parseInt(e.target.value))}
+                            required 
+                          />
+                        </div>
+                      </div>
+
+                      {goalsA > 0 && (
+                        <>
+                          <h4 style={{ marginTop: 20, marginBottom: 10 }}>⚽ Quem Marca - {gameDetails.game.team_a}</h4>
+                          {Array.from({ length: goalsA }).map((_, i) => (
+                            <div key={`a-${i}`} className="form-group">
+                              <label>Gol {i + 1}</label>
+                              <select name={`gol_a_${i}`} required>
+                                <option value="">-- Selecione --</option>
+                                {PLAYERS.brasil.map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {goalsB > 0 && (
+                        <>
+                          <h4 style={{ marginTop: 20, marginBottom: 10 }}>⚽ Quem Marca - {gameDetails.game.team_b}</h4>
+                          {Array.from({ length: goalsB }).map((_, i) => (
+                            <div key={`b-${i}`} className="form-group">
+                              <label>Gol {i + 1}</label>
+                              <select name={`gol_b_${i}`} required>
+                                <option value="">-- Selecione --</option>
+                                {PLAYERS.marrocos.map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      <h4 style={{ marginTop: 20, marginBottom: 10 }}>🟨🟥 Cartões - {gameDetails.game.team_a}</h4>
+                      <div className="two-cols">
+                        <div className="form-group">
+                          <label>🟨 Amarelo</label>
+                          <select name="yellow_a" required>
+                            <option value="">-- Selecione --</option>
+                            {PLAYERS.brasil.map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>🟥 Vermelho</label>
+                          <select name="red_a" required>
+                            <option value="">-- Selecione --</option>
+                            {PLAYERS.brasil.map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <h4 style={{ marginTop: 20, marginBottom: 10 }}>🟨🟥 Cartões - {gameDetails.game.team_b}</h4>
+                      <div className="two-cols">
+                        <div className="form-group">
+                          <label>🟨 Amarelo</label>
+                          <select name="yellow_b" required>
+                            <option value="">-- Selecione --</option>
+                            {PLAYERS.marrocos.map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>🟥 Vermelho</label>
+                          <select name="red_b" required>
+                            <option value="">-- Selecione --</option>
+                            {PLAYERS.marrocos.map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <button type="submit" style={{ marginTop: 20, width: '100%' }}>Confirmar Aposta 🎯</button>
+                    </form>
+                  </div>
+                )}
+
+                {isAdmin && gameDetails.game.status === 'open' && (
+                  <div className="card" style={{ background: '#ffe6e6', borderTop: '3px solid #ff6b6b', marginTop: 20 }}>
+                    <h3>⚙️ Fechar Jogo</h3>
+                    <p style={{ color: '#666', marginBottom: 20 }}>Defina o resultado final e feche as apostas.</p>
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      setConfirmModal({
+                        resultA: parseInt(e.target.result_a.value),
+                        resultB: parseInt(e.target.result_b.value),
+                        goalsA: e.target.goals_a.value,
+                        goalsB: e.target.goals_b.value,
+                        yellowA: e.target.yellow_a.value,
+                        redA: e.target.red_a.value,
+                        yellowB: e.target.yellow_b.value,
+                        redB: e.target.red_b.value
+                      });
+                    }}>
+                      <div className="three-cols">
+                        <div className="form-group">
+                          <label>{gameDetails.game.team_a} - Gols</label>
+                          <input type="number" name="result_a" min="0" max="9" required />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: '20px' }}>
+                          <h2 style={{ color: '#667eea' }}>X</h2>
+                        </div>
+                        <div className="form-group">
+                          <label>{gameDetails.game.team_b} - Gols</label>
+                          <input type="number" name="result_b" min="0" max="9" required />
+                        </div>
+                      </div>
+
+                      <h4 style={{ marginTop: 20, marginBottom: 10 }}>Gols Marcados (opcional)</h4>
+                      <div className="two-cols">
+                        <div className="form-group">
+                          <label>{gameDetails.game.team_a}</label>
+                          <input type="text" name="goals_a" placeholder="Ex: Neymar, Vini Jr" />
+                        </div>
+                        <div className="form-group">
+                          <label>{gameDetails.game.team_b}</label>
+                          <input type="text" name="goals_b" placeholder="Ex: El Kaabi, Hakimi" />
+                        </div>
+                      </div>
+
+                      <h4 style={{ marginTop: 20, marginBottom: 10 }}>Cartões</h4>
+                      <div className="three-cols">
+                        <div className="form-group">
+                          <label>🟨 Amarelo - {gameDetails.game.team_a}</label>
+                          <select name="yellow_a" required>
+                            <option value="">-- Selecione --</option>
+                            {PLAYERS.brasil.map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>🟥 Vermelho - {gameDetails.game.team_a}</label>
+                          <select name="red_a" required>
+                            <option value="">-- Selecione --</option>
+                            {PLAYERS.brasil.map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>🟨 Amarelo - {gameDetails.game.team_b}</label>
+                          <select name="yellow_b" required>
+                            <option value="">-- Selecione --</option>
+                            {PLAYERS.marrocos.map(p => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ marginTop: 15 }}>
+                        <label>🟥 Vermelho - {gameDetails.game.team_b}</label>
+                        <select name="red_b" required>
+                          <option value="">-- Selecione --</option>
+                          {PLAYERS.marrocos.map(p => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <button type="submit" className="btn-danger" style={{ marginTop: 20, width: '100%' }}>
+                        ⚠️ Validar Fechamento
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                <div style={{ marginTop: 30 }}>
+                  <h3 className="section-title">📊 Apostas Registradas</h3>
+                  {gameDetails.bets.length === 0 ? (
+                    <p>Nenhuma aposta ainda</p>
+                  ) : (
+                    gameDetails.bets.map(bet => (
+                      <div key={bet.id} className="bet-card">
+                        <strong>{bet.username}</strong>: {bet.result_a} x {bet.result_b}
+                        {bet.goals_team_a && <div>⚽ {gameDetails.game.team_a}: {bet.goals_team_a}</div>}
+                        {bet.goals_team_b && <div>⚽ {gameDetails.game.team_b}: {bet.goals_team_b}</div>}
+                        <div>🟨 {gameDetails.game.team_a}: {bet.yellow_a} | 🟥 {bet.red_a}</div>
+                        <div>🟨 {gameDetails.game.team_b}: {bet.yellow_b} | 🟥 {bet.red_b}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {confirmModal && (
+            <div className="modal-overlay">
+              <div className="modal-content">
+                <div className="modal-title">⚠️ Confirmar Fechamento</div>
+                <p style={{ color: '#666', marginBottom: 20 }}>
+                  Tem certeza que quer fechar este jogo? <strong>Esta ação não pode ser desfeita!</strong>
+                </p>
+                <div style={{ background: '#f9f9f9', padding: 15, borderRadius: 8, marginBottom: 20 }}>
+                  <p style={{ marginBottom: 10 }}>
+                    <strong>Resultado:</strong> {confirmModal.resultA} x {confirmModal.resultB}
+                  </p>
+                  {confirmModal.goalsA && <p><strong>Gols {gameDetails.game.team_a}:</strong> {confirmModal.goalsA}</p>}
+                  {confirmModal.goalsB && <p><strong>Gols {gameDetails.game.team_b}:</strong> {confirmModal.goalsB}</p>}
+                </div>
+                <div className="modal-buttons">
+                  <button className="btn-secondary" onClick={() => setConfirmModal(null)}>
+                    Cancelar
+                  </button>
+                  <button className="btn-danger" onClick={() => {
+                    handleCloseGame(
+                      confirmModal.resultA,
+                      confirmModal.resultB,
+                      confirmModal.goalsA,
+                      confirmModal.goalsB,
+                      confirmModal.yellowA,
+                      confirmModal.redA,
+                      confirmModal.yellowB,
+                      confirmModal.redB
+                    );
+                  }}>
+                    Confirmar Fechamento
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<BaianoBetApp />, document.getElementById('root'));
+  </script>
+</body>
+</html>
