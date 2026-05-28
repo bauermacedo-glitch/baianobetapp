@@ -439,7 +439,7 @@
                     </div>
                     <div className="user-stats" style={{ background: '#f0fff0', borderLeft: '4px solid #51cf66' }}>
                       <div className="stat-value" style={{ fontSize: 28, color: '#51cf66' }}>
-                        €{(userStats.total_prizes || 0).toFixed(2)}
+                        €{parseFloat(userStats.total_prizes || 0).toFixed(2)}
                       </div>
                       <div className="stat-label">Ganhos</div>
                     </div>
@@ -530,7 +530,7 @@
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontWeight: 700, color: '#51cf66', fontSize: 18 }}>
-                        €{(player.total_won || 0).toFixed(2)}
+                        €{parseFloat(player.total_won || 0).toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -556,11 +556,11 @@
                     </div>
                     <div className="kpi-card">
                       <div className="kpi-label">Prêmios Ganhos</div>
-                      <div className="kpi-value">€{(userStats.total_prizes || 0).toFixed(2)}</div>
+                      <div className="kpi-value">€{parseFloat(userStats.total_prizes || 0).toFixed(2)}</div>
                     </div>
                     <div className="kpi-card">
                       <div className="kpi-label">Prêmios Zueira</div>
-                      <div className="kpi-value">€{(userStats.fun_prizes || 0).toFixed(2)}</div>
+                      <div className="kpi-value">€{parseFloat(userStats.fun_prizes || 0).toFixed(2)}</div>
                     </div>
                   </div>
                   <div className="user-stats">
@@ -573,7 +573,7 @@
                     <div className="stat-row">
                       <span className="stat-label">Ganhos Totais</span>
                       <span className="stat-value">
-                        €{((userStats.total_prizes || 0) + (userStats.fun_prizes || 0)).toFixed(2)}
+                        €{(parseFloat(userStats.total_prizes || 0) + parseFloat(userStats.fun_prizes || 0)).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -597,11 +597,11 @@
                     </div>
                     <div className="kpi-card">
                       <div className="kpi-label">Total Arrecadado</div>
-                      <div className="kpi-value">€{(stats.total_raised || 0).toFixed(2)}</div>
+                      <div className="kpi-value">€{parseFloat(stats.total_raised || 0).toFixed(2)}</div>
                     </div>
                     <div className="kpi-card">
                       <div className="kpi-label">Maior Prêmio</div>
-                      <div className="kpi-value">€{(stats.largest_prize || 0).toFixed(2)}</div>
+                      <div className="kpi-value">€{parseFloat(stats.largest_prize || 0).toFixed(2)}</div>
                     </div>
                     <div className="kpi-card">
                       <div className="kpi-label">Total de Jogadores</div>
@@ -617,7 +617,7 @@
                       {stats.top_winner.username}
                     </div>
                     <p style={{ textAlign: 'center', color: '#666' }}>
-                      Total ganho: €{(stats.top_winner.total_won || 0).toFixed(2)}
+                      Total ganho: €{parseFloat(stats.top_winner.total_won || 0).toFixed(2)}
                     </p>
                   </div>
                 )}
