@@ -925,7 +925,7 @@
                   </div>
                 )}
 
-                {isAdmin && gameDetails.game.status === 'open' && (
+                {isAdmin && (gameDetails.game.status === 'open' || gameDetails.game.status === 'locked') && (
                   <div className="card" style={{ background: '#ffe6e6', borderTop: '3px solid #ff6b6b', marginTop: 20 }}>
                     <h3>⚙️ Fechar Jogo</h3>
                     <p style={{ color: '#666', marginBottom: 20 }}>Defina o resultado final e feche as apostas.</p>
