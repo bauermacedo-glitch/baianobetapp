@@ -425,32 +425,32 @@ app.post('/api/games/:id/close', authenticateToken, async (req, res) => {
     const normNames = (str) => (str || '').split(',').map(s => s.trim()).filter(Boolean).sort().join(',');
 
     // 1. Acertar o placar
-    let pool = betsResult.rows.filter(b =>
+    let candidates = betsResult.rows.filter(b =>
       parseInt(b.result_a) === result_a && parseInt(b.result_b) === result_b
     );
 
-    // 2. Acertar os marcadores (quem marcou os gols) — se alguém acertar, estreita o grupo
-    if (pool.length > 1) {
+    // 2. Acertar os marcadores — se alguém acertar, estreita o grupo
+    if (candidates.length > 1) {
       const actualA = normNames(goals_a);
       const actualB = normNames(goals_b);
-      const scorerMatch = pool.filter(b =>
+      const scorerMatch = candidates.filter(b =>
         normNames(b.goals_team_a) === actualA && normNames(b.goals_team_b) === actualB
       );
-      if (scorerMatch.length > 0) pool = scorerMatch;
+      if (scorerMatch.length > 0) candidates = scorerMatch;
     }
 
     // 3. Acertar cartões — "Ninguém" conta como previsão de ausência de cartão
-    if (pool.length > 1) {
-      const cardMatch = pool.filter(b =>
+    if (candidates.length > 1) {
+      const cardMatch = candidates.filter(b =>
         b.yellow_a === yellow_a && b.red_a === red_a &&
         b.yellow_b === yellow_b && b.red_b === red_b
       );
-      if (cardMatch.length > 0) pool = cardMatch;
+      if (cardMatch.length > 0) candidates = cardMatch;
     }
 
     // 4. Desempate final: quem apostou primeiro
-    pool.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    const mainWinner = pool.length > 0 ? pool[0] : null;
+    candidates.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const mainWinner = candidates.length > 0 ? candidates[0] : null;
     
     if (mainWinner) {
       await pool.query(
