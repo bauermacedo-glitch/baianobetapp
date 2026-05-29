@@ -418,8 +418,8 @@ app.post('/api/games/:id/close', authenticateToken, async (req, res) => {
     );
     
     const total = parseFloat(contributorsResult.rows[0]?.total || 0);
-    const mainPrize = total * 0.8;
-    const funPrize = total * 0.2;
+    const mainPrize = total * 0.95; // 95% para o vencedor, 5% fica na BaianoBet
+    const funPrize = 0;
     
     // Normaliza lista de marcadores ignorando ordem e espaços
     const normNames = (str) => (str || '').split(',').map(s => s.trim()).filter(Boolean).sort().join(',');
@@ -545,8 +545,7 @@ app.get('/api/user-stats/:userId', authenticateToken, async (req, res) => {
         u.username,
         COUNT(DISTINCT b.game_id) as total_bets,
         COUNT(DISTINCT CASE WHEN g.winner_id = u.id THEN g.id END) as wins,
-        SUM(CASE WHEN g.winner_id = u.id THEN g.main_prize ELSE 0 END) as total_prizes,
-        SUM(CASE WHEN g.winner_id = u.id THEN g.fun_prize ELSE 0 END) as fun_prizes
+        SUM(CASE WHEN g.winner_id = u.id THEN g.main_prize ELSE 0 END) as total_prizes
       FROM users u
       LEFT JOIN bets b ON u.id = b.user_id
       LEFT JOIN games g ON b.game_id = g.id AND g.status = 'closed'

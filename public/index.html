@@ -3,61 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BaianoBet Pro - Bolão de Apostas</title>
+  <title>BaianoBet - Bolão de Apostas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ultra&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
+    :root {
+      --verde:   #009C3B;
+      --amarelo: #FFDF00;
+      --azul:    #002776;
+      --branco:  #FFFFFF;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(150deg, var(--azul) 0%, #014a1a 60%, var(--verde) 100%); min-height: 100vh; padding: 20px; }
     .container { max-width: 1400px; margin: 0 auto; }
-    .header { text-align: center; color: white; margin-bottom: 30px; }
-    .header h1 { font-size: 48px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
-    .card { background: white; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    .header { text-align: center; color: var(--branco); margin-bottom: 30px; }
+    .header h1 { font-family: 'Ultra', serif; font-size: 52px; letter-spacing: 2px; color: var(--amarelo); text-shadow: 3px 3px 0px var(--azul), 0 0 20px rgba(255,223,0,0.4); margin-bottom: 10px; }
+    .header-logo { width: 90px; height: 90px; object-fit: contain; margin-bottom: 10px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5)); }
+    .card { background: var(--branco); border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
     .form-group { margin-bottom: 20px; }
     label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
     input, select, textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; font-family: inherit; }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; }
-    button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
-    button:hover { transform: translateY(-2px); }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--verde); }
+    button { background: linear-gradient(135deg, var(--verde) 0%, #007a2f 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+    button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,156,59,0.4); }
     .btn-secondary { background: #f0f0f0; color: #333; margin-left: 10px; }
-    .btn-secondary:hover { background: #e0e0e0; }
-    .btn-danger { background: #ff6b6b; }
-    .btn-danger:hover { background: #ee5a52; }
+    .btn-secondary:hover { background: #e0e0e0; box-shadow: none; }
+    .btn-danger { background: #e03131; }
+    .btn-danger:hover { background: #c92a2a; box-shadow: 0 4px 15px rgba(224,49,49,0.4); }
     .games-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-    .game-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.3s; }
-    .game-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-    .game-title { font-size: 20px; font-weight: 700; color: #667eea; margin-bottom: 10px; }
+    .game-card { background: var(--branco); border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); cursor: pointer; transition: all 0.3s; border-top: 4px solid var(--verde); }
+    .game-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    .game-title { font-size: 18px; font-weight: 700; color: var(--azul); margin-bottom: 10px; }
     .game-status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
-    .status-open { background: #d4edda; color: #155724; }
+    .status-open   { background: #d4edda; color: #155724; }
     .status-locked { background: #fff3cd; color: #856404; }
     .status-closed { background: #f8d7da; color: #721c24; }
-    .section-title { font-size: 18px; font-weight: 700; margin: 20px 0 15px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
-    .result-display { background: #f0f7ff; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea; }
-    .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f5c6cb; }
-    .success { background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #c3e6cb; }
-    .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .section-title { font-size: 18px; font-weight: 700; margin: 20px 0 15px 0; color: #333; border-bottom: 3px solid var(--amarelo); padding-bottom: 10px; }
+    .result-display { background: #f0fff4; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid var(--verde); }
+    .error   { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #e03131; }
+    .success { background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--verde); }
+    .two-cols   { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .three-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-    .four-cols { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
-    .kpi-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; text-align: center; }
-    .kpi-value { font-size: 32px; font-weight: 700; margin: 10px 0; }
+    .four-cols  { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
+    .kpi-card { background: linear-gradient(135deg, var(--azul) 0%, #003fa3 100%); color: white; padding: 20px; border-radius: 12px; text-align: center; border-bottom: 4px solid var(--amarelo); }
+    .kpi-value { font-size: 32px; font-weight: 700; margin: 10px 0; color: var(--amarelo); }
     .kpi-label { font-size: 14px; opacity: 0.9; }
     .leaderboard-item { display: grid; grid-template-columns: 40px 1fr auto; gap: 15px; align-items: center; padding: 15px; border-bottom: 1px solid #e0e0e0; }
-    .rank-badge { background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-    .user-stats { background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+    .rank-badge { background: linear-gradient(135deg, var(--amarelo) 0%, #ffd000 100%); color: var(--azul); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .user-stats { background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid var(--verde); }
     .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
     .stat-label { font-weight: 600; color: #666; }
-    .stat-value { color: #667eea; font-weight: 700; }
-    .bet-card { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea; }
+    .stat-value { color: var(--verde); font-weight: 700; }
+    .bet-card { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid var(--verde); }
     .tab-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; flex-wrap: wrap; }
     .tab { padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: 600; color: #999; border-bottom: 3px solid transparent; }
-    .tab.active { color: #667eea; border-bottom-color: #667eea; }
-    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .modal-content { background: white; border-radius: 12px; padding: 30px; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-    .modal-title { font-size: 24px; font-weight: 700; margin-bottom: 20px; }
+    .tab.active { color: var(--verde); border-bottom-color: var(--amarelo); }
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: white; border-radius: 12px; padding: 30px; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.4); border-top: 5px solid var(--amarelo); }
+    .modal-title { font-size: 24px; font-weight: 700; margin-bottom: 20px; color: var(--azul); }
     .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
     .modal-buttons button { flex: 1; }
-    .winner-badge { background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333; padding: 12px 20px; border-radius: 8px; font-weight: 700; text-align: center; margin: 20px 0; font-size: 18px; }
+    .winner-badge { background: linear-gradient(135deg, var(--amarelo) 0%, #ffd000 100%); color: var(--azul); padding: 12px 20px; border-radius: 8px; font-weight: 700; text-align: center; margin: 20px 0; font-size: 18px; border: 2px solid var(--verde); }
   </style>
 </head>
 <body>
@@ -419,8 +427,9 @@
         return (
           <div className="container">
             <div className="header">
-              <h1>🎲 BaianoBet PRO</h1>
-              <p>Bolão profissional com análises e leaderboards</p>
+              <img src="/logo.png" className="header-logo" alt="BaianoBet" />
+              <h1>BaianoBet</h1>
+              <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16 }}>Bolão de apostas — Copa do Mundo 2026</p>
             </div>
 
             <div style={{ maxWidth: 400, margin: '0 auto' }}>
@@ -463,8 +472,9 @@
       return (
         <div className="container">
           <div className="header">
-            <h1>🎲 BaianoBet PRO</h1>
-            <p>Bem-vindo, <strong>{user.username}</strong>{isAdmin && <span style={{ marginLeft: 10, background: '#ffd700', color: '#333', padding: '4px 12px', borderRadius: 4, fontWeight: 700, fontSize: 12 }}>👑 ADMIN</span>}</p>
+            <img src="/logo.png" className="header-logo" alt="BaianoBet" />
+            <h1>BaianoBet</h1>
+            <p>Bem-vindo, <strong>{user.username}</strong>{isAdmin && <span style={{ marginLeft: 10, background: 'var(--amarelo)', color: 'var(--azul)', padding: '4px 12px', borderRadius: 4, fontWeight: 700, fontSize: 12 }}>👑 ADMIN</span>}</p>
             <button onClick={handleLogout} style={{ marginTop: 20 }} className="btn-secondary">Sair</button>
           </div>
 
@@ -622,7 +632,7 @@
               <h2 style={{ marginTop: 20, marginBottom: 20 }}>📊 Suas Estatísticas</h2>
               {userStats ? (
                 <div>
-                  <div className="four-cols" style={{ marginBottom: 20 }}>
+                  <div className="three-cols" style={{ marginBottom: 20 }}>
                     <div className="kpi-card">
                       <div className="kpi-label">Total de Apostas</div>
                       <div className="kpi-value">{userStats.total_bets || 0}</div>
@@ -635,10 +645,6 @@
                       <div className="kpi-label">Prêmios Ganhos</div>
                       <div className="kpi-value">€{parseFloat(userStats.total_prizes || 0).toFixed(2)}</div>
                     </div>
-                    <div className="kpi-card">
-                      <div className="kpi-label">Prêmios Zueira</div>
-                      <div className="kpi-value">€{parseFloat(userStats.fun_prizes || 0).toFixed(2)}</div>
-                    </div>
                   </div>
                   <div className="user-stats">
                     <div className="stat-row">
@@ -650,7 +656,7 @@
                     <div className="stat-row">
                       <span className="stat-label">Ganhos Totais</span>
                       <span className="stat-value">
-                        €{(parseFloat(userStats.total_prizes || 0) + parseFloat(userStats.fun_prizes || 0)).toFixed(2)}
+                        €{parseFloat(userStats.total_prizes || 0).toFixed(2)}
                       </span>
                     </div>
                   </div>
