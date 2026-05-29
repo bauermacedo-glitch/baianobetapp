@@ -339,6 +339,11 @@ app.post('/api/games/:id/bets', authenticateToken, async (req, res) => {
     if (!gameCheck.rows[0] || gameCheck.rows[0].status !== 'open') {
       return res.status(400).json({ error: 'Apostas encerradas para este jogo' });
     }
+
+    const existingBet = await pool.query('SELECT id FROM bets WHERE game_id = $1 AND user_id = $2', [gameId, req.user.id]);
+    if (existingBet.rows.length > 0) {
+      return res.status(400).json({ error: 'Você já fez sua aposta. Apague-a primeiro para apostar novamente.' });
+    }
     const result = await pool.query(
       `INSERT INTO bets (game_id, user_id, result_a, result_b, goals_team_a, goals_team_b, yellow_a, red_a, yellow_b, red_b)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -357,6 +362,26 @@ app.post('/api/games/:id/bets', authenticateToken, async (req, res) => {
     }
 
     res.json({ id: result.rows[0].id });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// =====================
+// APAGAR PRÓPRIA APOSTA
+// =====================
+
+app.delete('/api/games/:id/my-bet', authenticateToken, async (req, res) => {
+  const gameId = req.params.id;
+  try {
+    await autoLockGames();
+    const gameCheck = await pool.query('SELECT status FROM games WHERE id = $1', [gameId]);
+    if (!gameCheck.rows[0] || gameCheck.rows[0].status !== 'open') {
+      return res.status(400).json({ error: 'Não é possível apagar a aposta após o bloqueio' });
+    }
+    await pool.query('DELETE FROM bets WHERE game_id = $1 AND user_id = $2', [gameId, req.user.id]);
+    await pool.query('DELETE FROM contributors WHERE game_id = $1 AND user_id = $2', [gameId, req.user.id]);
+    res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

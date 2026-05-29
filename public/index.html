@@ -340,6 +340,25 @@
         }
       };
 
+      const handleDeleteMyBet = async () => {
+        if (!window.confirm('Apagar sua aposta? Você poderá fazer uma nova enquanto as apostas estiverem abertas.')) return;
+        try {
+          const res = await fetch(`${API_URL}/games/${selectedGame}/my-bet`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (data.ok) {
+            setSuccess('Aposta apagada. Você pode fazer uma nova aposta.');
+            selectGame(selectedGame);
+          } else {
+            setError(data.error);
+          }
+        } catch (err) {
+          setError('Erro ao apagar aposta');
+        }
+      };
+
       const handleLockGame = async (gameId) => {
         try {
           const res = await fetch(`${API_URL}/games/${gameId}/lock`, {
@@ -763,7 +782,32 @@
                   </div>
                 )}
 
-                {gameDetails.game.status === 'open' && !isAdmin && (
+                {gameDetails.game.status === 'open' && !isAdmin && (() => {
+                  const myBet = gameDetails.bets.find(b => b.user_id === user.id);
+                  if (myBet) {
+                    return (
+                      <div style={{ background: '#f0f7ff', border: '2px solid #667eea', borderRadius: 8, padding: 20, margin: '20px 0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <h3 style={{ margin: 0 }}>✅ Sua Aposta</h3>
+                          <button className="btn-danger" style={{ fontSize: 13, padding: '8px 14px' }} onClick={handleDeleteMyBet}>
+                            🗑️ Apagar e Refazer
+                          </button>
+                        </div>
+                        <div>⚽ Placar: <strong>{myBet.result_a} x {myBet.result_b}</strong></div>
+                        {myBet.goals_team_a && <div>⚽ {gameDetails.game.team_a}: {myBet.goals_team_a}</div>}
+                        {myBet.goals_team_b && <div>⚽ {gameDetails.game.team_b}: {myBet.goals_team_b}</div>}
+                        <div>🟨 {gameDetails.game.team_a}: {myBet.yellow_a} | 🟥 {myBet.red_a}</div>
+                        <div>🟨 {gameDetails.game.team_b}: {myBet.yellow_b} | 🟥 {myBet.red_b}</div>
+                        <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+                          🕐 Apostado em {new Date(myBet.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {gameDetails.game.status === 'open' && !isAdmin && !gameDetails.bets.find(b => b.user_id === user.id) && (
                   <div style={{ background: '#f9f9f9', padding: 20, borderRadius: 8, margin: '20px 0' }}>
                     <h3 className="section-title">Sua Aposta</h3>
                     <form onSubmit={handlePlaceBet}>
