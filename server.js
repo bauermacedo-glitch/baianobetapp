@@ -275,6 +275,25 @@ app.post('/api/games', authenticateToken, async (req, res) => {
 });
 
 // =====================
+// APAGAR JOGO
+// =====================
+
+app.delete('/api/games/:id', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) {
+    return res.status(403).json({ error: 'Apenas administradores podem apagar jogos' });
+  }
+  const gameId = req.params.id;
+  try {
+    await pool.query('DELETE FROM contributors WHERE game_id = $1', [gameId]);
+    await pool.query('DELETE FROM bets WHERE game_id = $1', [gameId]);
+    await pool.query('DELETE FROM games WHERE id = $1', [gameId]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// =====================
 // APOSTAS
 // =====================
 
