@@ -974,25 +974,37 @@
 
                 <div style={{ marginTop: 30 }}>
                   <h3 className="section-title">
-                    📊 {gameDetails.game.status === 'closed' || isAdmin ? 'Apostas Registradas' : 'Sua Aposta'}
-                    {!isAdmin && gameDetails.game.status !== 'closed' && (
+                    📊 {gameDetails.game.status !== 'open' || isAdmin ? 'Apostas Registradas' : 'Sua Aposta'}
+                    {!isAdmin && gameDetails.game.status === 'open' && (
                       <span style={{ fontSize: 12, color: '#999', fontWeight: 400, marginLeft: 8 }}>
-                        (outras apostas ficam ocultas até o jogo ser fechado)
+                        (outras apostas ficam ocultas até o bloqueio)
                       </span>
                     )}
                   </h3>
                   {gameDetails.bets.length === 0 ? (
                     <p>{gameDetails.game.status === 'open' ? 'Você ainda não apostou neste jogo' : 'Nenhuma aposta ainda'}</p>
                   ) : (
-                    gameDetails.bets.map(bet => (
-                      <div key={bet.id} className="bet-card">
-                        <strong>{bet.username}</strong>: {bet.result_a} x {bet.result_b}
-                        {bet.goals_team_a && <div>⚽ {gameDetails.game.team_a}: {bet.goals_team_a}</div>}
-                        {bet.goals_team_b && <div>⚽ {gameDetails.game.team_b}: {bet.goals_team_b}</div>}
-                        <div>🟨 {gameDetails.game.team_a}: {bet.yellow_a} | 🟥 {bet.red_a}</div>
-                        <div>🟨 {gameDetails.game.team_b}: {bet.yellow_b} | 🟥 {bet.red_b}</div>
-                      </div>
-                    ))
+                    (() => {
+                      // Aposta do usuário logado no topo
+                      const myBet = gameDetails.bets.find(b => b.user_id === user.id);
+                      const others = gameDetails.bets.filter(b => b.user_id !== user.id);
+                      const sorted = myBet ? [myBet, ...others] : others;
+                      return sorted.map(bet => (
+                        <div key={bet.id} className="bet-card" style={bet.user_id === user.id ? { borderLeftColor: '#667eea', background: '#f0f7ff' } : {}}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <strong>{bet.username}{bet.user_id === user.id ? ' (você)' : ''}</strong>
+                            <span style={{ fontSize: 11, color: '#999' }}>
+                              🕐 {new Date(bet.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div>⚽ Placar: <strong>{bet.result_a} x {bet.result_b}</strong></div>
+                          {bet.goals_team_a && <div>⚽ {gameDetails.game.team_a}: {bet.goals_team_a}</div>}
+                          {bet.goals_team_b && <div>⚽ {gameDetails.game.team_b}: {bet.goals_team_b}</div>}
+                          <div>🟨 {gameDetails.game.team_a}: {bet.yellow_a} | 🟥 {bet.red_a}</div>
+                          <div>🟨 {gameDetails.game.team_b}: {bet.yellow_b} | 🟥 {bet.red_b}</div>
+                        </div>
+                      ));
+                    })()
                   )}
                 </div>
               </div>

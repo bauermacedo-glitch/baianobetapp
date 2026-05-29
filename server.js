@@ -248,9 +248,10 @@ app.get('/api/games/:id', authenticateToken, async (req, res) => {
 
     // Apostas visíveis a todos só quando o jogo estiver fechado. Antes disso, cada um vê só a sua.
     const isAdmin = req.user.is_admin;
-    const betsQuery = (isAdmin || game.status === 'closed')
-      ? { text: 'SELECT b.*, u.username FROM bets b LEFT JOIN users u ON b.user_id = u.id WHERE b.game_id = $1', values: [gameId] }
-      : { text: 'SELECT b.*, u.username FROM bets b LEFT JOIN users u ON b.user_id = u.id WHERE b.game_id = $1 AND b.user_id = $2', values: [gameId, req.user.id] };
+    const canSeeAll = isAdmin || game.status === 'locked' || game.status === 'closed';
+    const betsQuery = canSeeAll
+      ? { text: 'SELECT b.*, u.username FROM bets b LEFT JOIN users u ON b.user_id = u.id WHERE b.game_id = $1 ORDER BY b.created_at ASC', values: [gameId] }
+      : { text: 'SELECT b.*, u.username FROM bets b LEFT JOIN users u ON b.user_id = u.id WHERE b.game_id = $1 AND b.user_id = $2 ORDER BY b.created_at ASC', values: [gameId, req.user.id] };
 
     const betsResult = await pool.query(betsQuery);
     
@@ -395,32 +396,36 @@ app.post('/api/games/:id/close', authenticateToken, async (req, res) => {
     const mainPrize = total * 0.8;
     const funPrize = total * 0.2;
     
-    const winners = betsResult.rows.filter(b => b.result_a === result_a && b.result_b === result_b);
-    let mainWinner = null;
-    
-    if (winners.length === 1) {
-      mainWinner = winners[0];
-    } else if (winners.length > 1) {
-      const goalsMatch = winners.filter(b => {
-        const bGoalsA = b.goals_team_a ? b.goals_team_a.split(',').length : 0;
-        const bGoalsB = b.goals_team_b ? b.goals_team_b.split(',').length : 0;
-        const actualGoalsA = goals_a ? goals_a.split(',').length : 0;
-        const actualGoalsB = goals_b ? goals_b.split(',').length : 0;
-        return bGoalsA === actualGoalsA && bGoalsB === actualGoalsB;
-      });
-      
-      if (goalsMatch.length === 1) {
-        mainWinner = goalsMatch[0];
-      } else if (goalsMatch.length > 1) {
-        const cardsMatch = goalsMatch.filter(b => {
-          return b.yellow_a === yellow_a && b.red_a === red_a &&
-                 b.yellow_b === yellow_b && b.red_b === red_b;
-        });
-        if (cardsMatch.length > 0) {
-          mainWinner = cardsMatch[0];
-        }
-      }
+    // Normaliza lista de marcadores ignorando ordem e espaços
+    const normNames = (str) => (str || '').split(',').map(s => s.trim()).filter(Boolean).sort().join(',');
+
+    // 1. Acertar o placar
+    let pool = betsResult.rows.filter(b =>
+      parseInt(b.result_a) === result_a && parseInt(b.result_b) === result_b
+    );
+
+    // 2. Acertar os marcadores (quem marcou os gols) — se alguém acertar, estreita o grupo
+    if (pool.length > 1) {
+      const actualA = normNames(goals_a);
+      const actualB = normNames(goals_b);
+      const scorerMatch = pool.filter(b =>
+        normNames(b.goals_team_a) === actualA && normNames(b.goals_team_b) === actualB
+      );
+      if (scorerMatch.length > 0) pool = scorerMatch;
     }
+
+    // 3. Acertar cartões — "Ninguém" conta como previsão de ausência de cartão
+    if (pool.length > 1) {
+      const cardMatch = pool.filter(b =>
+        b.yellow_a === yellow_a && b.red_a === red_a &&
+        b.yellow_b === yellow_b && b.red_b === red_b
+      );
+      if (cardMatch.length > 0) pool = cardMatch;
+    }
+
+    // 4. Desempate final: quem apostou primeiro
+    pool.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const mainWinner = pool.length > 0 ? pool[0] : null;
     
     if (mainWinner) {
       await pool.query(
