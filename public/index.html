@@ -222,7 +222,7 @@
               name: e.target.name.value,
               team_a: e.target.team_a.value,
               team_b: e.target.team_b.value,
-              amount: e.target.amount.value,
+              bet_value: e.target.bet_value.value,
               round: e.target.round?.value || null
             })
           });
@@ -497,8 +497,8 @@
                     </div>
                     <div className="two-cols">
                       <div className="form-group">
-                        <label>Seu Aporte (€)</label>
-                        <input type="number" name="amount" step="0.50" placeholder="10" required />
+                        <label>Valor da Aposta (€ por participante)</label>
+                        <input type="number" name="bet_value" step="0.50" placeholder="10" required />
                       </div>
                       <div className="form-group">
                         <label>Fase/Round (opcional)</label>

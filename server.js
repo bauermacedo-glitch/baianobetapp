@@ -59,9 +59,22 @@ async function initializeDatabase() {
         winner_id INTEGER REFERENCES users(id),
         main_prize NUMERIC(10,2) DEFAULT 0,
         fun_prize NUMERIC(10,2) DEFAULT 0,
+        bet_value NUMERIC(10,2) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         closed_at TIMESTAMP
       )
+    `);
+
+    // Migrações para bancos já existentes
+    await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS bet_value NUMERIC(10,2) DEFAULT 0`);
+    await pool.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'contributors_game_user_unique'
+        ) THEN
+          ALTER TABLE contributors ADD CONSTRAINT contributors_game_user_unique UNIQUE (game_id, user_id);
+        END IF;
+      END $$;
     `);
 
     await pool.query(`
@@ -247,21 +260,14 @@ app.post('/api/games', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Apenas administradores podem criar jogos' });
   }
 
-  const { name, team_a, team_b, amount, round } = req.body;
-  
+  const { name, team_a, team_b, bet_value, round } = req.body;
+
   try {
     const gameResult = await pool.query(
-      'INSERT INTO games (name, team_a, team_b, created_by, round) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, team_a, team_b, status',
-      [name, team_a, team_b, req.user.id, round]
+      'INSERT INTO games (name, team_a, team_b, created_by, round, bet_value) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, team_a, team_b, status, bet_value',
+      [name, team_a, team_b, req.user.id, round, bet_value || 0]
     );
-    
-    const gameId = gameResult.rows[0].id;
-    
-    await pool.query(
-      'INSERT INTO contributors (game_id, user_id, amount) VALUES ($1, $2, $3)',
-      [gameId, req.user.id, amount]
-    );
-    
+
     res.json(gameResult.rows[0]);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -283,7 +289,17 @@ app.post('/api/games/:id/bets', authenticateToken, async (req, res) => {
        RETURNING id`,
       [gameId, req.user.id, result_a, result_b, goals_team_a, goals_team_b, yellow_a, red_a, yellow_b, red_b]
     );
-    
+
+    // Registrar contribuição do apostador com o valor definido pelo admin
+    const gameResult = await pool.query('SELECT bet_value FROM games WHERE id = $1', [gameId]);
+    const betValue = parseFloat(gameResult.rows[0]?.bet_value || 0);
+    if (betValue > 0) {
+      await pool.query(
+        'INSERT INTO contributors (game_id, user_id, amount) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+        [gameId, req.user.id, betValue]
+      );
+    }
+
     res.json({ id: result.rows[0].id });
   } catch (err) {
     res.status(400).json({ error: err.message });
