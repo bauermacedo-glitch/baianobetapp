@@ -61,12 +61,14 @@ async function initializeDatabase() {
         fun_prize NUMERIC(10,2) DEFAULT 0,
         bet_value NUMERIC(10,2) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        closed_at TIMESTAMP
+        closed_at TIMESTAMP,
+        lock_at TIMESTAMP
       )
     `);
 
     // Migrações para bancos já existentes
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS bet_value NUMERIC(10,2) DEFAULT 0`);
+    await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS lock_at TIMESTAMP`);
     await pool.query(`
       DO $$ BEGIN
         IF NOT EXISTS (
@@ -111,6 +113,14 @@ async function initializeDatabase() {
 }
 
 initializeDatabase();
+
+// Auto-lock jogos que passaram do horário
+async function autoLockGames() {
+  await pool.query(`
+    UPDATE games SET status = 'locked'
+    WHERE status = 'open' AND lock_at IS NOT NULL AND lock_at <= NOW()
+  `);
+}
 
 // =====================
 // MIDDLEWARE
@@ -217,6 +227,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/games', authenticateToken, async (req, res) => {
   try {
+    await autoLockGames();
     const result = await pool.query('SELECT * FROM games ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
@@ -235,10 +246,13 @@ app.get('/api/games/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Jogo não encontrado' });
     }
 
-    const betsResult = await pool.query(
-      'SELECT b.*, u.username FROM bets b LEFT JOIN users u ON b.user_id = u.id WHERE b.game_id = $1',
-      [gameId]
-    );
+    // Apostas visíveis a todos só quando o jogo estiver fechado. Antes disso, cada um vê só a sua.
+    const isAdmin = req.user.is_admin;
+    const betsQuery = (isAdmin || game.status === 'closed')
+      ? { text: 'SELECT b.*, u.username FROM bets b LEFT JOIN users u ON b.user_id = u.id WHERE b.game_id = $1', values: [gameId] }
+      : { text: 'SELECT b.*, u.username FROM bets b LEFT JOIN users u ON b.user_id = u.id WHERE b.game_id = $1 AND b.user_id = $2', values: [gameId, req.user.id] };
+
+    const betsResult = await pool.query(betsQuery);
     
     const contributorsResult = await pool.query(
       'SELECT c.*, u.username FROM contributors c LEFT JOIN users u ON c.user_id = u.id WHERE c.game_id = $1',
@@ -260,15 +274,32 @@ app.post('/api/games', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Apenas administradores podem criar jogos' });
   }
 
-  const { name, team_a, team_b, bet_value, round } = req.body;
+  const { name, team_a, team_b, bet_value, round, lock_at } = req.body;
 
   try {
     const gameResult = await pool.query(
-      'INSERT INTO games (name, team_a, team_b, created_by, round, bet_value) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, team_a, team_b, status, bet_value',
-      [name, team_a, team_b, req.user.id, round, bet_value || 0]
+      'INSERT INTO games (name, team_a, team_b, created_by, round, bet_value, lock_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, team_a, team_b, status, bet_value, lock_at',
+      [name, team_a, team_b, req.user.id, round, bet_value || 0, lock_at || null]
     );
 
     res.json(gameResult.rows[0]);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// =====================
+// BLOQUEAR APOSTAS
+// =====================
+
+app.post('/api/games/:id/lock', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    await pool.query(
+      "UPDATE games SET status = 'locked' WHERE id = $1 AND status = 'open'",
+      [req.params.id]
+    );
+    res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -300,8 +331,13 @@ app.delete('/api/games/:id', authenticateToken, async (req, res) => {
 app.post('/api/games/:id/bets', authenticateToken, async (req, res) => {
   const { result_a, result_b, goals_team_a, goals_team_b, yellow_a, red_a, yellow_b, red_b } = req.body;
   const gameId = req.params.id;
-  
+
   try {
+    await autoLockGames();
+    const gameCheck = await pool.query('SELECT status FROM games WHERE id = $1', [gameId]);
+    if (!gameCheck.rows[0] || gameCheck.rows[0].status !== 'open') {
+      return res.status(400).json({ error: 'Apostas encerradas para este jogo' });
+    }
     const result = await pool.query(
       `INSERT INTO bets (game_id, user_id, result_a, result_b, goals_team_a, goals_team_b, yellow_a, red_a, yellow_b, red_b)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)

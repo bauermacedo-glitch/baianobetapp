@@ -30,6 +30,7 @@
     .game-title { font-size: 20px; font-weight: 700; color: #667eea; margin-bottom: 10px; }
     .game-status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
     .status-open { background: #d4edda; color: #155724; }
+    .status-locked { background: #fff3cd; color: #856404; }
     .status-closed { background: #f8d7da; color: #721c24; }
     .section-title { font-size: 18px; font-weight: 700; margin: 20px 0 15px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
     .result-display { background: #f0f7ff; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea; }
@@ -223,7 +224,8 @@
               team_a: e.target.team_a.value,
               team_b: e.target.team_b.value,
               bet_value: e.target.bet_value.value,
-              round: e.target.round?.value || null
+              round: e.target.round?.value || null,
+              lock_at: e.target.lock_at?.value || null
             })
           });
           const data = await res.json();
@@ -335,6 +337,25 @@
           selectGame(selectedGame);
         } catch (err) {
           setError('Erro ao fechar jogo');
+        }
+      };
+
+      const handleLockGame = async (gameId) => {
+        try {
+          const res = await fetch(`${API_URL}/games/${gameId}/lock`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (data.ok) {
+            setSuccess('Apostas bloqueadas 🔒');
+            fetchGames();
+            if (selectedGame === gameId) selectGame(gameId);
+          } else {
+            setError(data.error);
+          }
+        } catch (err) {
+          setError('Erro ao bloquear apostas');
         }
       };
 
@@ -474,8 +495,8 @@
                   <div className="games-list">
                     {games.map(game => (
                       <div key={game.id} className="game-card" onClick={() => selectGame(game.id)}>
-                        <div className={`game-status ${game.status === 'open' ? 'status-open' : 'status-closed'}`}>
-                          {game.status === 'open' ? '🟢 Aberto' : '🔴 Fechado'}
+                        <div className={`game-status status-${game.status}`}>
+                          {game.status === 'open' ? '🟢 Aberto' : game.status === 'locked' ? '🔒 Apostas Encerradas' : '🔴 Fechado'}
                         </div>
                         <div className="game-title">{game.name}</div>
                         <div style={{ fontSize: 18, margin: '10px 0' }}>
@@ -491,11 +512,17 @@
                             e.stopPropagation();
                             selectGame(game.id);
                           }}>Ver Detalhes →</button>
+                          {isAdmin && game.status === 'open' && (
+                            <button style={{ padding: '12px 16px', background: '#f59e0b' }} onClick={(e) => {
+                              e.stopPropagation();
+                              handleLockGame(game.id);
+                            }} title="Bloquear apostas">🔒</button>
+                          )}
                           {isAdmin && (
                             <button className="btn-danger" style={{ padding: '12px 16px' }} onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteGame(game.id, game.name);
-                            }}>🗑️</button>
+                            }} title="Apagar jogo">🗑️</button>
                           )}
                         </div>
                       </div>
@@ -531,6 +558,10 @@
                         <label>Fase/Round (opcional)</label>
                         <input type="text" name="round" placeholder="Quartas de Final" />
                       </div>
+                    </div>
+                    <div className="form-group">
+                      <label>🕐 Encerrar apostas automaticamente (opcional)</label>
+                      <input type="datetime-local" name="lock_at" />
                     </div>
                     <button type="submit">Criar Jogo 🎯</button>
                   </form>
@@ -715,6 +746,20 @@
                         </span>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {gameDetails.game.status === 'locked' && !isAdmin && (
+                  <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8, padding: '12px 16px', margin: '16px 0', fontWeight: 600, color: '#856404' }}>
+                    🔒 Apostas encerradas — o resultado será revelado em breve.
+                  </div>
+                )}
+
+                {isAdmin && gameDetails.game.status === 'open' && (
+                  <div style={{ textAlign: 'right', marginBottom: 10 }}>
+                    <button style={{ background: '#f59e0b' }} onClick={() => handleLockGame(selectedGame)}>
+                      🔒 Bloquear Apostas Agora
+                    </button>
                   </div>
                 )}
 
@@ -928,9 +973,16 @@
                 )}
 
                 <div style={{ marginTop: 30 }}>
-                  <h3 className="section-title">📊 Apostas Registradas</h3>
+                  <h3 className="section-title">
+                    📊 {gameDetails.game.status === 'closed' || isAdmin ? 'Apostas Registradas' : 'Sua Aposta'}
+                    {!isAdmin && gameDetails.game.status !== 'closed' && (
+                      <span style={{ fontSize: 12, color: '#999', fontWeight: 400, marginLeft: 8 }}>
+                        (outras apostas ficam ocultas até o jogo ser fechado)
+                      </span>
+                    )}
+                  </h3>
                   {gameDetails.bets.length === 0 ? (
-                    <p>Nenhuma aposta ainda</p>
+                    <p>{gameDetails.game.status === 'open' ? 'Você ainda não apostou neste jogo' : 'Nenhuma aposta ainda'}</p>
                   ) : (
                     gameDetails.bets.map(bet => (
                       <div key={bet.id} className="bet-card">
