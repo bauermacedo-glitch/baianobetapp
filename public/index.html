@@ -318,6 +318,18 @@
         const result_a = parseInt(formData.get('result_a'));
         const result_b = parseInt(formData.get('result_b'));
 
+        let goals_a = [];
+        for (let i = 0; i < result_a; i++) {
+          const val = formData.get(`gol_a_${i}`);
+          if (val) goals_a.push(val);
+        }
+
+        let goals_b = [];
+        for (let i = 0; i < result_b; i++) {
+          const val = formData.get(`gol_b_${i}`);
+          if (val) goals_b.push(val);
+        }
+
         try {
           const res = await fetch(`${API_URL}/games/${selectedGame}/bets`, {
             method: 'POST',
@@ -328,8 +340,8 @@
             body: JSON.stringify({
               result_a,
               result_b,
-              goals_team_a: '',
-              goals_team_b: '',
+              goals_team_a: goals_a.join(', '),
+              goals_team_b: goals_b.join(', '),
               yellow_a: parseInt(formData.get('yellow_a')) || 0,
               red_a: parseInt(formData.get('red_a')) || 0,
               yellow_b: parseInt(formData.get('yellow_b')) || 0,
@@ -864,6 +876,8 @@
                           </button>
                         </div>
                         <div>⚽ Placar: <strong>{myBet.result_a} x {myBet.result_b}</strong></div>
+                        {myBet.goals_team_a && <div>⚽ {gameDetails.game.team_a}: {myBet.goals_team_a}</div>}
+                        {myBet.goals_team_b && <div>⚽ {gameDetails.game.team_b}: {myBet.goals_team_b}</div>}
                         <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>
                           🟨 {gameDetails.game.team_a}: {myBet.yellow_a || 0} &nbsp;🟥 {myBet.red_a || 0} &nbsp;&nbsp;
                           🟨 {gameDetails.game.team_b}: {myBet.yellow_b || 0} &nbsp;🟥 {myBet.red_b || 0}
@@ -912,6 +926,40 @@
                         </div>
                       </div>
 
+                      {goalsA > 0 && (
+                        <>
+                          <h4 style={{ marginTop: 20, marginBottom: 10 }}>⚽ Quem Marca - {gameDetails.game.team_a}</h4>
+                          {Array.from({ length: goalsA }).map((_, i) => (
+                            <div key={`a-${i}`} className="form-group">
+                              <label>Gol {i + 1}</label>
+                              <select name={`gol_a_${i}`} required>
+                                <option value="">-- Selecione --</option>
+                                {PLAYERS.brasil.map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {goalsB > 0 && (
+                        <>
+                          <h4 style={{ marginTop: 20, marginBottom: 10 }}>⚽ Quem Marca - {gameDetails.game.team_b}</h4>
+                          {Array.from({ length: goalsB }).map((_, i) => (
+                            <div key={`b-${i}`} className="form-group">
+                              <label>Gol {i + 1}</label>
+                              <select name={`gol_b_${i}`} required>
+                                <option value="">-- Selecione --</option>
+                                {PLAYERS.marrocos.map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
                       <h4 style={{ marginTop: 20, marginBottom: 10 }}>🟨🟥 Cartões - {gameDetails.game.team_a}</h4>
                       <div className="two-cols">
                         <div className="form-group">
@@ -950,6 +998,8 @@
                       setConfirmModal({
                         resultA: parseInt(e.target.result_a.value),
                         resultB: parseInt(e.target.result_b.value),
+                        goalsA: e.target.goals_a.value,
+                        goalsB: e.target.goals_b.value,
                         yellowA: parseInt(e.target.yellow_a.value) || 0,
                         redA: parseInt(e.target.red_a.value) || 0,
                         yellowB: parseInt(e.target.yellow_b.value) || 0,
@@ -967,6 +1017,18 @@
                         <div className="form-group">
                           <label>{gameDetails.game.team_b} - Gols</label>
                           <input type="number" name="result_b" min="0" max="9" required />
+                        </div>
+                      </div>
+
+                      <h4 style={{ marginTop: 20, marginBottom: 10 }}>Gols Marcados (opcional)</h4>
+                      <div className="two-cols">
+                        <div className="form-group">
+                          <label>{gameDetails.game.team_a}</label>
+                          <input type="text" name="goals_a" placeholder="Ex: Neymar, Vini Jr" />
+                        </div>
+                        <div className="form-group">
+                          <label>{gameDetails.game.team_b}</label>
+                          <input type="text" name="goals_b" placeholder="Ex: El Kaabi, Hakimi" />
                         </div>
                       </div>
 
@@ -1023,6 +1085,8 @@
                             </span>
                           </div>
                           <div>⚽ Placar: <strong>{bet.result_a} x {bet.result_b}</strong></div>
+                          {bet.goals_team_a && <div style={{ fontSize: 13 }}>⚽ {gameDetails.game.team_a}: {bet.goals_team_a}</div>}
+                          {bet.goals_team_b && <div style={{ fontSize: 13 }}>⚽ {gameDetails.game.team_b}: {bet.goals_team_b}</div>}
                           <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>
                             🟨 {gameDetails.game.team_a}: {bet.yellow_a || 0} &nbsp;🟥 {bet.red_a || 0} &nbsp;&nbsp;
                             🟨 {gameDetails.game.team_b}: {bet.yellow_b || 0} &nbsp;🟥 {bet.red_b || 0}
@@ -1206,6 +1270,8 @@
                   <p style={{ marginBottom: 8 }}>
                     <strong>Resultado:</strong> {confirmModal.resultA} x {confirmModal.resultB}
                   </p>
+                  {confirmModal.goalsA && <p style={{ fontSize: 13, marginBottom: 4 }}><strong>Gols {gameDetails.game.team_a}:</strong> {confirmModal.goalsA}</p>}
+                  {confirmModal.goalsB && <p style={{ fontSize: 13, marginBottom: 4 }}><strong>Gols {gameDetails.game.team_b}:</strong> {confirmModal.goalsB}</p>}
                   <p style={{ marginBottom: 4, fontSize: 13, color: '#555' }}>
                     🟨 {gameDetails.game.team_a}: {confirmModal.yellowA} | 🟥 {confirmModal.redA} &nbsp;&nbsp;
                     🟨 {gameDetails.game.team_b}: {confirmModal.yellowB} | 🟥 {confirmModal.redB}
@@ -1219,7 +1285,8 @@
                     handleCloseGame(
                       confirmModal.resultA,
                       confirmModal.resultB,
-                      '', '',
+                      confirmModal.goalsA,
+                      confirmModal.goalsB,
                       confirmModal.yellowA,
                       confirmModal.redA,
                       confirmModal.yellowB,
