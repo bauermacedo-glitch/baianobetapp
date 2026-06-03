@@ -75,6 +75,26 @@
     .btn-copy:hover { background: rgba(255,255,255,0.35); }
     .btn-mbway-confirm { background: var(--verde); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 10px; transition: opacity 0.2s; }
     .btn-mbway-confirm:hover { opacity: 0.85; }
+    .users-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+    .users-table th { background: var(--azul); color: white; padding: 10px 12px; text-align: left; font-weight: 600; }
+    .users-table td { padding: 10px 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+    .users-table tr:hover td { background: #f7f9ff; }
+    .badge-pending { background: #ff6b35; color: white; border-radius: 10px; padding: 2px 7px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+    .badge-approved { background: var(--verde); color: white; border-radius: 10px; padding: 2px 7px; font-size: 11px; font-weight: 700; }
+    .badge-blocked { background: #999; color: white; border-radius: 10px; padding: 2px 7px; font-size: 11px; font-weight: 700; }
+    .user-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .btn-xs { padding: 5px 10px; font-size: 12px; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; transition: opacity 0.2s; }
+    .btn-xs:hover { opacity: 0.8; }
+    .btn-xs-green { background: var(--verde); color: white; }
+    .btn-xs-red { background: #e03131; color: white; }
+    .btn-xs-yellow { background: var(--amarelo); color: var(--azul); }
+    .btn-xs-gray { background: #aaa; color: white; }
+    .btn-xs-blue { background: var(--azul); color: white; }
+    .inline-pwd { display: flex; gap: 6px; margin-top: 6px; }
+    .inline-pwd input { flex: 1; padding: 5px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
+    .pending-screen { text-align: center; padding: 60px 20px; }
+    .pending-screen h2 { color: var(--amarelo); font-family: 'Ultra', serif; font-size: 28px; margin-bottom: 12px; }
+    .pending-screen p { color: rgba(255,255,255,0.85); font-size: 16px; margin-bottom: 24px; }
     .winner-badge { background: linear-gradient(135deg, var(--amarelo) 0%, #ffd000 100%); color: var(--azul); padding: 12px 20px; border-radius: 8px; font-weight: 700; text-align: center; margin: 20px 0; font-size: 18px; border: 2px solid var(--verde); }
   </style>
 </head>
@@ -107,6 +127,9 @@
       const [userStats, setUserStats] = useState(null);
       const [confirmModal, setConfirmModal] = useState(null);
       const [mbwayModal, setMbwayModal] = useState(null);
+      const [adminUsers, setAdminUsers] = useState([]);
+      const [editPasswordId, setEditPasswordId] = useState(null);
+      const [newPassword, setNewPassword] = useState('');
       const isAdmin = user?.is_admin || false;
 
       useEffect(() => {
@@ -127,6 +150,18 @@
           setGames(data);
         } catch (err) {
           setError('Erro ao carregar jogos');
+        }
+      };
+
+      const fetchAdminUsers = async () => {
+        try {
+          const res = await fetch(`${API_URL}/admin/users`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          setAdminUsers(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error('Erro ao carregar utilizadores');
         }
       };
 
@@ -484,6 +519,24 @@
         );
       }
 
+      // Utilizador ainda não aprovado
+      if (token && user && !user.approved && !user.is_admin) {
+        return (
+          <div className="container">
+            <div className="header">
+              <img src="/logo.png" className="header-logo" alt="BaianoBet" />
+              <h1>BaianoBet</h1>
+            </div>
+            <div className="pending-screen">
+              <div style={{ fontSize: 64, marginBottom: 16 }}>⏳</div>
+              <h2>Conta Pendente</h2>
+              <p>O teu registo foi recebido! Aguarda a aprovação do administrador para começares a apostar.</p>
+              <button className="btn-secondary" onClick={handleLogout}>Sair</button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="container">
           <div className="header">
@@ -503,6 +556,14 @@
                 <button className="tab" onClick={() => setView('leaderboard')}>🏆 Leaderboard</button>
                 <button className="tab" onClick={() => setView('my-stats')}>📊 Minhas Stats</button>
                 {isAdmin && <button className="tab" onClick={() => setView('admin-dashboard')}>⚙️ Dashboard Admin</button>}
+                {isAdmin && (
+                  <button className="tab" onClick={() => { setView('admin-users'); fetchAdminUsers(); }}>
+                    👥 Utilizadores
+                    {adminUsers.filter(u => !u.approved || parseInt(u.approved) === 0).length > 0 && (
+                      <span className="badge-pending">{adminUsers.filter(u => !u.approved || parseInt(u.approved) === 0).length}</span>
+                    )}
+                  </button>
+                )}
               </div>
 
               {userStats && view === 'games' && (
@@ -1074,6 +1135,142 @@
                 </div>
               </div>
             </>
+          )}
+
+          {view === 'admin-users' && isAdmin && (
+            <div>
+              <button onClick={() => setView('games')} className="btn-secondary">← Voltar</button>
+              <div style={{ marginTop: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <h2>👥 Gerir Utilizadores</h2>
+                  <button className="btn-secondary" onClick={fetchAdminUsers} style={{ fontSize: 13 }}>🔄 Atualizar</button>
+                </div>
+
+                {adminUsers.filter(u => parseInt(u.approved) === 0).length > 0 && (
+                  <div className="card" style={{ background: '#fff3e0', border: '2px solid #ff6b35', marginBottom: 20 }}>
+                    <strong>⏳ {adminUsers.filter(u => parseInt(u.approved) === 0).length} registo(s) aguardando aprovação</strong>
+                  </div>
+                )}
+
+                <div className="card" style={{ overflowX: 'auto', padding: 0 }}>
+                  <table className="users-table">
+                    <thead>
+                      <tr>
+                        <th>Utilizador</th>
+                        <th>Estado</th>
+                        <th>Apostas</th>
+                        <th>Vitórias</th>
+                        <th>Ganhos</th>
+                        <th>Registro</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminUsers.map(u => (
+                        <tr key={u.id}>
+                          <td>
+                            <strong>{u.username}</strong>
+                            {parseInt(u.is_admin) === 1 && <span style={{ marginLeft: 6, fontSize: 11, background: 'var(--amarelo)', color: 'var(--azul)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>👑 ADMIN</span>}
+                          </td>
+                          <td>
+                            {parseInt(u.approved) === 1
+                              ? <span className="badge-approved">✅ Aprovado</span>
+                              : <span className="badge-pending">⏳ Pendente</span>}
+                          </td>
+                          <td>{u.total_bets || 0}</td>
+                          <td>{u.wins || 0}</td>
+                          <td>€{parseFloat(u.total_won || 0).toFixed(2)}</td>
+                          <td style={{ fontSize: 12, color: '#888' }}>{new Date(u.created_at).toLocaleDateString('pt-PT')}</td>
+                          <td>
+                            <div className="user-actions">
+                              {parseInt(u.approved) === 0 ? (
+                                <button className="btn-xs btn-xs-green" onClick={async () => {
+                                  await fetch(`${API_URL}/admin/users/${u.id}/approve`, {
+                                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                    body: JSON.stringify({ approved: true })
+                                  });
+                                  fetchAdminUsers();
+                                }}>✅ Aprovar</button>
+                              ) : (
+                                u.id !== user.id && parseInt(u.is_admin) !== 1 && (
+                                  <button className="btn-xs btn-xs-gray" onClick={async () => {
+                                    await fetch(`${API_URL}/admin/users/${u.id}/approve`, {
+                                      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                      body: JSON.stringify({ approved: false })
+                                    });
+                                    fetchAdminUsers();
+                                  }}>🚫 Bloquear</button>
+                                )
+                              )}
+
+                              {u.id !== user.id && parseInt(u.is_admin) !== 1 && (
+                                <button className="btn-xs btn-xs-blue" onClick={async () => {
+                                  if (!window.confirm(`Promover ${u.username} a admin?`)) return;
+                                  await fetch(`${API_URL}/admin/users/${u.id}/toggle-admin`, {
+                                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                    body: JSON.stringify({ is_admin: true })
+                                  });
+                                  fetchAdminUsers();
+                                }}>👑 Admin</button>
+                              )}
+
+                              {u.id !== user.id && parseInt(u.is_admin) === 1 && (
+                                <button className="btn-xs btn-xs-gray" onClick={async () => {
+                                  if (!window.confirm(`Revogar admin de ${u.username}?`)) return;
+                                  await fetch(`${API_URL}/admin/users/${u.id}/toggle-admin`, {
+                                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                    body: JSON.stringify({ is_admin: false })
+                                  });
+                                  fetchAdminUsers();
+                                }}>↩ Revogar Admin</button>
+                              )}
+
+                              <button className="btn-xs btn-xs-yellow" onClick={() => {
+                                setEditPasswordId(editPasswordId === u.id ? null : u.id);
+                                setNewPassword('');
+                              }}>🔑 Senha</button>
+
+                              {u.id !== user.id && (
+                                <button className="btn-xs btn-xs-red" onClick={async () => {
+                                  if (!window.confirm(`Apagar ${u.username}? Esta ação não pode ser revertida.`)) return;
+                                  const res = await fetch(`${API_URL}/admin/users/${u.id}`, {
+                                    method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+                                  });
+                                  const data = await res.json();
+                                  if (data.ok) fetchAdminUsers();
+                                  else alert(data.error);
+                                }}>🗑️ Apagar</button>
+                              )}
+                            </div>
+
+                            {editPasswordId === u.id && (
+                              <div className="inline-pwd">
+                                <input
+                                  type="text"
+                                  placeholder="Nova senha..."
+                                  value={newPassword}
+                                  onChange={e => setNewPassword(e.target.value)}
+                                />
+                                <button className="btn-xs btn-xs-green" onClick={async () => {
+                                  const res = await fetch(`${API_URL}/admin/users/${u.id}/password`, {
+                                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                    body: JSON.stringify({ password: newPassword })
+                                  });
+                                  const data = await res.json();
+                                  if (data.ok) { setEditPasswordId(null); setNewPassword(''); alert('Senha alterada!'); }
+                                  else alert(data.error);
+                                }}>Salvar</button>
+                                <button className="btn-xs btn-xs-gray" onClick={() => setEditPasswordId(null)}>✕</button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           )}
 
           {mbwayModal && (

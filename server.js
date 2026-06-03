@@ -69,6 +69,9 @@ async function initializeDatabase() {
     // Migrações para bancos já existentes
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS bet_value NUMERIC(10,2) DEFAULT 0`);
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS lock_at TIMESTAMP`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approved INTEGER DEFAULT 1`);
+    // Garante que todos os utilizadores existentes ficam aprovados
+    await pool.query(`UPDATE users SET approved = 1 WHERE approved IS NULL`);
     await pool.query(`
       DO $$ BEGIN
         IF NOT EXISTS (
@@ -155,27 +158,29 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const countResult = await pool.query('SELECT COUNT(*) as count FROM users');
     const is_admin = parseInt(countResult.rows[0].count) === 0 ? 1 : 0;
+    const approved = is_admin; // primeiro utilizador (admin) aprovado automaticamente; os restantes ficam pendentes
     const hashed = await bcrypt.hash(password, 10);
-    
+
     const result = await pool.query(
-      'INSERT INTO users (username, password, is_admin) VALUES ($1, $2, $3) RETURNING id, username, is_admin',
-      [username, hashed, is_admin]
+      'INSERT INTO users (username, password, is_admin, approved) VALUES ($1, $2, $3, $4) RETURNING id, username, is_admin, approved',
+      [username, hashed, is_admin, approved]
     );
-    
+
     const user = result.rows[0];
-    const token = jwt.sign({ 
-      id: user.id, 
-      username: user.username, 
-      is_admin: user.is_admin === 1 
+    const token = jwt.sign({
+      id: user.id,
+      username: user.username,
+      is_admin: user.is_admin === 1
     }, SECRET_KEY);
-    
-    res.json({ 
-      token, 
-      user: { 
-        id: user.id, 
-        username: user.username, 
-        is_admin: user.is_admin === 1 
-      } 
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        is_admin: user.is_admin === 1,
+        approved: user.approved === 1
+      }
     });
   } catch (err) {
     if (err.code === '23505') {
@@ -191,7 +196,7 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     const user = result.rows[0];
-    
+
     if (!user) {
       return res.status(400).json({ error: 'Usuário não encontrado' });
     }
@@ -202,19 +207,21 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const is_admin = user.is_admin === 1;
-    const token = jwt.sign({ 
-      id: user.id, 
-      username: user.username, 
-      is_admin 
+    const approved = user.approved === 1;
+    const token = jwt.sign({
+      id: user.id,
+      username: user.username,
+      is_admin
     }, SECRET_KEY);
-    
-    res.json({ 
-      token, 
-      user: { 
-        id: user.id, 
-        username: user.username, 
-        is_admin 
-      } 
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        is_admin,
+        approved
+      }
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -334,6 +341,12 @@ app.post('/api/games/:id/bets', authenticateToken, async (req, res) => {
   const gameId = req.params.id;
 
   try {
+    // Verificar se utilizador está aprovado
+    const userCheck = await pool.query('SELECT approved FROM users WHERE id = $1', [req.user.id]);
+    if (!userCheck.rows[0] || userCheck.rows[0].approved !== 1) {
+      return res.status(403).json({ error: 'A tua conta ainda não foi aprovada pelo administrador.' });
+    }
+
     await autoLockGames();
     const gameCheck = await pool.query('SELECT status FROM games WHERE id = $1', [gameId]);
     if (!gameCheck.rows[0] || gameCheck.rows[0].status !== 'open') {
@@ -598,6 +611,86 @@ app.get('/api/export-csv', authenticateToken, async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="baianobetapp_apostas.csv"');
     res.send(csv);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// =====================
+// ADMIN — GESTÃO DE UTILIZADORES
+// =====================
+
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const result = await pool.query(`
+      SELECT
+        u.id, u.username, u.is_admin, u.approved, u.created_at,
+        COUNT(DISTINCT b.game_id) as total_bets,
+        COUNT(DISTINCT CASE WHEN g.winner_id = u.id THEN g.id END) as wins,
+        COALESCE(SUM(CASE WHEN g.winner_id = u.id THEN g.main_prize ELSE 0 END), 0) as total_won
+      FROM users u
+      LEFT JOIN bets b ON u.id = b.user_id
+      LEFT JOIN games g ON b.game_id = g.id
+      GROUP BY u.id
+      ORDER BY u.created_at ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/users/:id/approve', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const { approved } = req.body;
+  try {
+    await pool.query('UPDATE users SET approved = $1 WHERE id = $2', [approved ? 1 : 0, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/users/:id/password', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const { password } = req.body;
+  if (!password || password.length < 4) return res.status(400).json({ error: 'Senha deve ter pelo menos 4 caracteres' });
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/users/:id', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  if (parseInt(req.params.id) === req.user.id) {
+    return res.status(400).json({ error: 'Não podes apagar a tua própria conta' });
+  }
+  try {
+    const userId = req.params.id;
+    await pool.query('UPDATE games SET winner_id = NULL WHERE winner_id = $1', [userId]);
+    await pool.query('DELETE FROM contributors WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM bets WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/users/:id/toggle-admin', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  if (parseInt(req.params.id) === req.user.id) {
+    return res.status(400).json({ error: 'Não podes alterar o teu próprio status de admin' });
+  }
+  const { is_admin } = req.body;
+  try {
+    await pool.query('UPDATE users SET is_admin = $1 WHERE id = $2', [is_admin ? 1 : 0, req.params.id]);
+    res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
