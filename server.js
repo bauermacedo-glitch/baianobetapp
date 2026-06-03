@@ -70,8 +70,9 @@ async function initializeDatabase() {
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS bet_value NUMERIC(10,2) DEFAULT 0`);
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS lock_at TIMESTAMP`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approved INTEGER DEFAULT 1`);
-    // Garante que todos os utilizadores existentes ficam aprovados
     await pool.query(`UPDATE users SET approved = 1 WHERE approved IS NULL`);
+    await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS jackpot NUMERIC(10,2) DEFAULT 0`);
+    await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS jackpot_transferred BOOLEAN DEFAULT FALSE`);
     await pool.query(`
       DO $$ BEGIN
         IF NOT EXISTS (
@@ -236,7 +237,13 @@ app.get('/api/games', authenticateToken, async (req, res) => {
   try {
     await autoLockGames();
     const result = await pool.query('SELECT * FROM games ORDER BY created_at DESC');
-    res.json(result.rows);
+    const jackpotResult = await pool.query(`
+      SELECT COALESCE(SUM(main_prize), 0) as pending_jackpot
+      FROM games
+      WHERE status = 'closed' AND winner_id IS NULL AND jackpot_transferred = FALSE
+    `);
+    const pendingJackpot = parseFloat(jackpotResult.rows[0].pending_jackpot || 0);
+    res.json({ games: result.rows, pendingJackpot });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -431,8 +438,17 @@ app.post('/api/games/:id/close', authenticateToken, async (req, res) => {
     );
     
     const total = parseFloat(contributorsResult.rows[0]?.total || 0);
-    const mainPrize = total * 0.95; // 95% para o vencedor, 5% fica na BaianoBet
+    const currentPrize = total * 0.95; // 95% para o vencedor, 5% fica na BaianoBet
     const funPrize = 0;
+
+    // Jackpot acumulado de jogos anteriores sem vencedor
+    const jackpotResult = await pool.query(`
+      SELECT COALESCE(SUM(main_prize), 0) as accumulated
+      FROM games
+      WHERE status = 'closed' AND winner_id IS NULL AND jackpot_transferred = FALSE AND id != $1
+    `, [gameId]);
+    const accumulatedJackpot = parseFloat(jackpotResult.rows[0].accumulated || 0);
+    const mainPrize = currentPrize + accumulatedJackpot;
     
     // Normaliza lista de marcadores ignorando ordem e espaços
     const normNames = (str) => (str || '').split(',').map(s => s.trim()).filter(Boolean).sort().join(',');
@@ -467,8 +483,21 @@ app.post('/api/games/:id/close', authenticateToken, async (req, res) => {
     
     if (mainWinner) {
       await pool.query(
-        'UPDATE games SET winner_id = $1, main_prize = $2, fun_prize = $3 WHERE id = $4',
-        [mainWinner.user_id, mainPrize, funPrize, gameId]
+        'UPDATE games SET winner_id = $1, main_prize = $2, fun_prize = $3, jackpot = $4 WHERE id = $5',
+        [mainWinner.user_id, mainPrize, funPrize, accumulatedJackpot, gameId]
+      );
+      // Marcar jogos anteriores sem vencedor como jackpot transferido
+      if (accumulatedJackpot > 0) {
+        await pool.query(`
+          UPDATE games SET jackpot_transferred = TRUE
+          WHERE status = 'closed' AND winner_id IS NULL AND jackpot_transferred = FALSE AND id != $1
+        `, [gameId]);
+      }
+    } else {
+      // Sem vencedor: salvar prêmio acumulável (só o do jogo atual, 95% do pote)
+      await pool.query(
+        'UPDATE games SET main_prize = $1, fun_prize = $2 WHERE id = $3',
+        [currentPrize, funPrize, gameId]
       );
     }
     
