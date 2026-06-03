@@ -437,55 +437,74 @@ app.post('/api/games/:id/close', authenticateToken, async (req, res) => {
     // LÓGICA DE PONTUAÇÃO (sempre garante um vencedor)
     // =====================
 
+    const normNames = (str) => (str || '').split(',').map(s => s.trim()).filter(Boolean).sort().join(',');
+    const actualScorerA = normNames(goals_a);
+    const actualScorerB = normNames(goals_b);
+
+    const applyTiebreakers = (group) => {
+      // Desempate 1: quem marcou os gols
+      if (group.length > 1) {
+        const scorerMatch = group.filter(b =>
+          normNames(b.goals_team_a) === actualScorerA && normNames(b.goals_team_b) === actualScorerB
+        );
+        if (scorerMatch.length > 0) group = scorerMatch;
+      }
+      // Desempate 2: cartões
+      if (group.length > 1) {
+        const cardMatch = group.filter(b =>
+          parseInt(b.yellow_a) === parseInt(yellow_a) && parseInt(b.red_a) === parseInt(red_a) &&
+          parseInt(b.yellow_b) === parseInt(yellow_b) && parseInt(b.red_b) === parseInt(red_b)
+        );
+        if (cardMatch.length > 0) group = cardMatch;
+      }
+      // Desempate 3: quem apostou primeiro
+      group.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      return group;
+    };
+
     // 1. Placar exato
     let candidates = betsResult.rows.filter(b =>
       parseInt(b.result_a) === result_a && parseInt(b.result_b) === result_b
     );
 
-    // 2. Mesma diferença de gols (ex: resultado 3x1 → diff=2: 2x0, 4x2, 5x3)
-    if (candidates.length === 0) {
+    if (candidates.length > 0) {
+      // Alguém acertou o placar — aplica desempates
+      candidates = applyTiebreakers(candidates);
+    } else {
+      // Ninguém acertou o placar — tenta aproximar
+
+      // 2. Mesma diferença de gols (ex: 3x1 → diff=2: 2x0, 4x2, 5x3)
       const actualDiff = result_a - result_b;
-      candidates = betsResult.rows.filter(b =>
+      let pool = betsResult.rows.filter(b =>
         (parseInt(b.result_a) - parseInt(b.result_b)) === actualDiff
       );
+
+      // 3. Gols do vencedor (ex: 3x1 → 3x0, 3x2)
+      if (pool.length === 0) {
+        const winnerGoals = result_a >= result_b ? result_a : result_b;
+        const winnerIsA = result_a >= result_b;
+        pool = betsResult.rows.filter(b => {
+          const predicted = winnerIsA ? parseInt(b.result_a) : parseInt(b.result_b);
+          return predicted === winnerGoals;
+        });
+      }
+
+      // 4. Gols do perdedor (ex: 3x1 → 0x1, 2x1, 4x1)
+      if (pool.length === 0) {
+        const loserGoals = result_a < result_b ? result_a : result_b;
+        const loserIsA = result_a < result_b;
+        pool = betsResult.rows.filter(b => {
+          const predicted = loserIsA ? parseInt(b.result_a) : parseInt(b.result_b);
+          return predicted === loserGoals;
+        });
+      }
+
+      // 5. Fallback: todos (ninguém chegou perto)
+      if (pool.length === 0) pool = betsResult.rows;
+
+      candidates = applyTiebreakers(pool);
     }
 
-    // 3. Acertou os gols do vencedor (ex: resultado 3x1 → time A marcou 3: 3x0, 3x2)
-    if (candidates.length === 0) {
-      const winnerGoals = result_a >= result_b ? result_a : result_b;
-      const winnerIsA = result_a >= result_b;
-      candidates = betsResult.rows.filter(b => {
-        const predicted = winnerIsA ? parseInt(b.result_a) : parseInt(b.result_b);
-        return predicted === winnerGoals;
-      });
-    }
-
-    // 4. Acertou os gols do perdedor (ex: resultado 3x1 → time B marcou 1: 2x1, 4x1)
-    if (candidates.length === 0) {
-      const loserGoals = result_a < result_b ? result_a : result_b;
-      const loserIsA = result_a < result_b;
-      candidates = betsResult.rows.filter(b => {
-        const predicted = loserIsA ? parseInt(b.result_a) : parseInt(b.result_b);
-        return predicted === loserGoals;
-      });
-    }
-
-    // 5. Fallback: todos os apostadores (ninguém chegou perto — vence quem apostou primeiro)
-    if (candidates.length === 0) {
-      candidates = betsResult.rows;
-    }
-
-    // Desempate por cartões (quantidade)
-    if (candidates.length > 1) {
-      const cardMatch = candidates.filter(b =>
-        parseInt(b.yellow_a) === parseInt(yellow_a) && parseInt(b.red_a) === parseInt(red_a) &&
-        parseInt(b.yellow_b) === parseInt(yellow_b) && parseInt(b.red_b) === parseInt(red_b)
-      );
-      if (cardMatch.length > 0) candidates = cardMatch;
-    }
-
-    // Desempate final: quem apostou primeiro
-    candidates.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     const mainWinner = candidates.length > 0 ? candidates[0] : null;
 
     if (mainWinner) {
