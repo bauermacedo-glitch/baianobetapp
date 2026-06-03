@@ -879,8 +879,8 @@
                         {myBet.goals_team_a && <div>⚽ {gameDetails.game.team_a}: {myBet.goals_team_a}</div>}
                         {myBet.goals_team_b && <div>⚽ {gameDetails.game.team_b}: {myBet.goals_team_b}</div>}
                         <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>
-                          🟨 {gameDetails.game.team_a}: {myBet.yellow_a || 0} &nbsp;🟥 {myBet.red_a || 0} &nbsp;&nbsp;
-                          🟨 {gameDetails.game.team_b}: {myBet.yellow_b || 0} &nbsp;🟥 {myBet.red_b || 0}
+                          {gameDetails.game.team_a} 🟨 {myBet.yellow_a || 0} 🟥 {myBet.red_a || 0} &nbsp;&nbsp;
+                          {gameDetails.game.team_b} 🟨 {myBet.yellow_b || 0} 🟥 {myBet.red_b || 0}
                         </div>
                         <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
                           🕐 Apostado em {new Date(myBet.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -1088,8 +1088,8 @@
                           {bet.goals_team_a && <div style={{ fontSize: 13 }}>⚽ {gameDetails.game.team_a}: {bet.goals_team_a}</div>}
                           {bet.goals_team_b && <div style={{ fontSize: 13 }}>⚽ {gameDetails.game.team_b}: {bet.goals_team_b}</div>}
                           <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>
-                            🟨 {gameDetails.game.team_a}: {bet.yellow_a || 0} &nbsp;🟥 {bet.red_a || 0} &nbsp;&nbsp;
-                            🟨 {gameDetails.game.team_b}: {bet.yellow_b || 0} &nbsp;🟥 {bet.red_b || 0}
+                            {gameDetails.game.team_a} 🟨 {bet.yellow_a || 0} 🟥 {bet.red_a || 0} &nbsp;&nbsp;
+                            {gameDetails.game.team_b} 🟨 {bet.yellow_b || 0} 🟥 {bet.red_b || 0}
                           </div>
                         </div>
                       ));
