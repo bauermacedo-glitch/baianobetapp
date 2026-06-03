@@ -65,6 +65,16 @@
     .modal-title { font-size: 24px; font-weight: 700; margin-bottom: 20px; color: var(--azul); }
     .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
     .modal-buttons button { flex: 1; }
+    .mbway-box { background: linear-gradient(135deg, var(--verde), #005a1f); border-radius: 12px; padding: 20px; margin: 20px 0; color: white; text-align: center; }
+    .mbway-logo { font-size: 32px; font-weight: 900; letter-spacing: 2px; color: var(--amarelo); margin-bottom: 4px; }
+    .mbway-amount { font-size: 42px; font-weight: 900; color: var(--amarelo); margin: 12px 0; text-shadow: 2px 2px 0 rgba(0,0,0,0.3); }
+    .mbway-contact { font-size: 18px; font-weight: 700; margin-top: 8px; }
+    .mbway-number { font-size: 28px; font-weight: 900; letter-spacing: 3px; margin: 4px 0; }
+    .mbway-ref { font-size: 13px; opacity: 0.85; margin-top: 10px; }
+    .btn-copy { background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); color: white; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; margin-top: 10px; transition: all 0.2s; }
+    .btn-copy:hover { background: rgba(255,255,255,0.35); }
+    .btn-mbway-confirm { background: var(--verde); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 10px; transition: opacity 0.2s; }
+    .btn-mbway-confirm:hover { opacity: 0.85; }
     .winner-badge { background: linear-gradient(135deg, var(--amarelo) 0%, #ffd000 100%); color: var(--azul); padding: 12px 20px; border-radius: 8px; font-weight: 700; text-align: center; margin: 20px 0; font-size: 18px; border: 2px solid var(--verde); }
   </style>
 </head>
@@ -96,6 +106,7 @@
       const [leaderboard, setLeaderboard] = useState([]);
       const [userStats, setUserStats] = useState(null);
       const [confirmModal, setConfirmModal] = useState(null);
+      const [mbwayModal, setMbwayModal] = useState(null);
       const isAdmin = user?.is_admin || false;
 
       useEffect(() => {
@@ -307,6 +318,10 @@
             setSuccess('Aposta registrada! 🎯');
             e.target.reset();
             selectGame(selectedGame);
+            setMbwayModal({
+              value: parseFloat(gameDetails.game.bet_value || 0).toFixed(2),
+              game: gameDetails.game.name
+            });
           } else {
             setError(data.error);
           }
@@ -1059,6 +1074,29 @@
                 </div>
               </div>
             </>
+          )}
+
+          {mbwayModal && (
+            <div className="modal-overlay" onClick={() => setMbwayModal(null)}>
+              <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-title">💳 Pagamento MBWay</div>
+                <p style={{ color: '#555', marginBottom: 4 }}>Aposta registrada! Faz a transferência para confirmar a tua participação:</p>
+                <div className="mbway-box">
+                  <div className="mbway-logo">MB WAY</div>
+                  <div className="mbway-amount">€{mbwayModal.value}</div>
+                  <div className="mbway-contact">Bauer Macedo</div>
+                  <div className="mbway-number">969 736 933</div>
+                  <div className="mbway-ref">Referência: {mbwayModal.game}</div>
+                  <button className="btn-copy" onClick={() => {
+                    navigator.clipboard.writeText('969736933');
+                    alert('Número copiado! 📋');
+                  }}>📋 Copiar número</button>
+                </div>
+                <button className="btn-mbway-confirm" onClick={() => setMbwayModal(null)}>
+                  ✅ Já fiz a transferência!
+                </button>
+              </div>
+            </div>
           )}
 
           {confirmModal && (
