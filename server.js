@@ -71,8 +71,6 @@ async function initializeDatabase() {
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS lock_at TIMESTAMP`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approved INTEGER DEFAULT 1`);
     await pool.query(`UPDATE users SET approved = 1 WHERE approved IS NULL`);
-    await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS jackpot NUMERIC(10,2) DEFAULT 0`);
-    await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS jackpot_transferred BOOLEAN DEFAULT FALSE`);
     await pool.query(`
       DO $$ BEGIN
         IF NOT EXISTS (
@@ -237,13 +235,7 @@ app.get('/api/games', authenticateToken, async (req, res) => {
   try {
     await autoLockGames();
     const result = await pool.query('SELECT * FROM games ORDER BY created_at DESC');
-    const jackpotResult = await pool.query(`
-      SELECT COALESCE(SUM(main_prize), 0) as pending_jackpot
-      FROM games
-      WHERE status = 'closed' AND winner_id IS NULL AND jackpot_transferred = FALSE
-    `);
-    const pendingJackpot = parseFloat(jackpotResult.rows[0].pending_jackpot || 0);
-    res.json({ games: result.rows, pendingJackpot });
+    res.json(result.rows);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -438,66 +430,68 @@ app.post('/api/games/:id/close', authenticateToken, async (req, res) => {
     );
     
     const total = parseFloat(contributorsResult.rows[0]?.total || 0);
-    const currentPrize = total * 0.95; // 95% para o vencedor, 5% fica na BaianoBet
+    const mainPrize = total * 0.95; // 95% para o vencedor, 5% fica na BaianoBet
     const funPrize = 0;
 
-    // Jackpot acumulado de jogos anteriores sem vencedor
-    const jackpotResult = await pool.query(`
-      SELECT COALESCE(SUM(main_prize), 0) as accumulated
-      FROM games
-      WHERE status = 'closed' AND winner_id IS NULL AND jackpot_transferred = FALSE AND id != $1
-    `, [gameId]);
-    const accumulatedJackpot = parseFloat(jackpotResult.rows[0].accumulated || 0);
-    const mainPrize = currentPrize + accumulatedJackpot;
-    
-    // Normaliza lista de marcadores ignorando ordem e espaços
-    const normNames = (str) => (str || '').split(',').map(s => s.trim()).filter(Boolean).sort().join(',');
+    // =====================
+    // LÓGICA DE PONTUAÇÃO (sempre garante um vencedor)
+    // =====================
 
-    // 1. Acertar o placar
+    // 1. Placar exato
     let candidates = betsResult.rows.filter(b =>
       parseInt(b.result_a) === result_a && parseInt(b.result_b) === result_b
     );
 
-    // 2. Acertar os marcadores — se alguém acertar, estreita o grupo
-    if (candidates.length > 1) {
-      const actualA = normNames(goals_a);
-      const actualB = normNames(goals_b);
-      const scorerMatch = candidates.filter(b =>
-        normNames(b.goals_team_a) === actualA && normNames(b.goals_team_b) === actualB
+    // 2. Mesma diferença de gols (ex: resultado 3x1 → diff=2: 2x0, 4x2, 5x3)
+    if (candidates.length === 0) {
+      const actualDiff = result_a - result_b;
+      candidates = betsResult.rows.filter(b =>
+        (parseInt(b.result_a) - parseInt(b.result_b)) === actualDiff
       );
-      if (scorerMatch.length > 0) candidates = scorerMatch;
     }
 
-    // 3. Acertar cartões — "Ninguém" conta como previsão de ausência de cartão
+    // 3. Acertou os gols do vencedor (ex: resultado 3x1 → time A marcou 3: 3x0, 3x2)
+    if (candidates.length === 0) {
+      const winnerGoals = result_a >= result_b ? result_a : result_b;
+      const winnerIsA = result_a >= result_b;
+      candidates = betsResult.rows.filter(b => {
+        const predicted = winnerIsA ? parseInt(b.result_a) : parseInt(b.result_b);
+        return predicted === winnerGoals;
+      });
+    }
+
+    // 4. Acertou os gols do perdedor (ex: resultado 3x1 → time B marcou 1: 2x1, 4x1)
+    if (candidates.length === 0) {
+      const loserGoals = result_a < result_b ? result_a : result_b;
+      const loserIsA = result_a < result_b;
+      candidates = betsResult.rows.filter(b => {
+        const predicted = loserIsA ? parseInt(b.result_a) : parseInt(b.result_b);
+        return predicted === loserGoals;
+      });
+    }
+
+    // 5. Fallback: todos os apostadores (ninguém chegou perto — vence quem apostou primeiro)
+    if (candidates.length === 0) {
+      candidates = betsResult.rows;
+    }
+
+    // Desempate por cartões (quantidade)
     if (candidates.length > 1) {
       const cardMatch = candidates.filter(b =>
-        b.yellow_a === yellow_a && b.red_a === red_a &&
-        b.yellow_b === yellow_b && b.red_b === red_b
+        parseInt(b.yellow_a) === parseInt(yellow_a) && parseInt(b.red_a) === parseInt(red_a) &&
+        parseInt(b.yellow_b) === parseInt(yellow_b) && parseInt(b.red_b) === parseInt(red_b)
       );
       if (cardMatch.length > 0) candidates = cardMatch;
     }
 
-    // 4. Desempate final: quem apostou primeiro
+    // Desempate final: quem apostou primeiro
     candidates.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     const mainWinner = candidates.length > 0 ? candidates[0] : null;
-    
+
     if (mainWinner) {
       await pool.query(
-        'UPDATE games SET winner_id = $1, main_prize = $2, fun_prize = $3, jackpot = $4 WHERE id = $5',
-        [mainWinner.user_id, mainPrize, funPrize, accumulatedJackpot, gameId]
-      );
-      // Marcar jogos anteriores sem vencedor como jackpot transferido
-      if (accumulatedJackpot > 0) {
-        await pool.query(`
-          UPDATE games SET jackpot_transferred = TRUE
-          WHERE status = 'closed' AND winner_id IS NULL AND jackpot_transferred = FALSE AND id != $1
-        `, [gameId]);
-      }
-    } else {
-      // Sem vencedor: salvar prêmio acumulável (só o do jogo atual, 95% do pote)
-      await pool.query(
-        'UPDATE games SET main_prize = $1, fun_prize = $2 WHERE id = $3',
-        [currentPrize, funPrize, gameId]
+        'UPDATE games SET winner_id = $1, main_prize = $2, fun_prize = $3 WHERE id = $4',
+        [mainWinner.user_id, mainPrize, funPrize, gameId]
       );
     }
     
