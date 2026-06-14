@@ -139,6 +139,10 @@
       const [adminUsers, setAdminUsers] = useState([]);
       const [editPasswordId, setEditPasswordId] = useState(null);
       const [newPassword, setNewPassword] = useState('');
+      const [editContactId, setEditContactId] = useState(null);
+      const [contactEmail, setContactEmail] = useState('');
+      const [contactPhone, setContactPhone] = useState('');
+      const [showProfileBanner, setShowProfileBanner] = useState(true);
       const isAdmin = user?.is_admin || false;
 
       useEffect(() => {
@@ -217,9 +221,9 @@
           const res = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              username: e.target.username.value,
-              password: e.target.password.value 
+            body: JSON.stringify({
+              email: e.target.email.value,
+              password: e.target.password.value
             })
           });
           const data = await res.json();
@@ -244,7 +248,9 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              username: e.target.username.value,
+              name: e.target.name.value,
+              email: e.target.email.value,
+              phone: e.target.phone.value,
               password: e.target.password.value
             })
           });
@@ -482,6 +488,30 @@
         }
       };
 
+      const handleUpdateContact = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        try {
+          const res = await fetch(`${API_URL}/profile/contact`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ email: formData.get('email'), phone: formData.get('phone') })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            const updatedUser = { ...user, email: data.user.email, phone: data.user.phone };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+            setShowProfileBanner(false);
+            setSuccess('Perfil atualizado! ✅');
+          } else {
+            setError(data.error);
+          }
+        } catch (err) {
+          setError('Erro ao atualizar perfil');
+        }
+      };
+
       if (!token || !user) {
         return (
           <div className="container">
@@ -498,8 +528,9 @@
                 {success && <div className="success">{success}</div>}
                 <form onSubmit={handleLogin}>
                   <div className="form-group">
-                    <label>Usuário</label>
-                    <input type="text" name="username" required />
+                    <label>Email</label>
+                    <input type="text" name="email" placeholder="teu@email.com" required />
+                    <span style={{ fontSize: 11, color: '#999', marginTop: 4, display: 'block' }}>Contas antigas: usa o teu nome de utilizador</span>
                   </div>
                   <div className="form-group">
                     <label>Senha</label>
@@ -513,8 +544,16 @@
                 <h2 style={{ marginBottom: 30, textAlign: 'center' }}>Criar Conta</h2>
                 <form onSubmit={handleRegister}>
                   <div className="form-group">
-                    <label>Usuário</label>
-                    <input type="text" name="username" required />
+                    <label>Nome</label>
+                    <input type="text" name="name" placeholder="Como te chamam" required />
+                  </div>
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" placeholder="teu@email.com" required />
+                  </div>
+                  <div className="form-group">
+                    <label>Telefone</label>
+                    <input type="tel" name="phone" placeholder="+351 9XX XXX XXX" required />
                   </div>
                   <div className="form-group">
                     <label>Senha</label>
@@ -557,6 +596,31 @@
 
           {error && <div className="card error">{error}</div>}
           {success && <div className="card success">{success}</div>}
+
+          {!user.email && showProfileBanner && (
+            <div className="card" style={{ borderTop: '4px solid #f59e0b', background: '#fffbeb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <strong style={{ color: '#92400e', fontSize: 15 }}>📋 Complete o teu perfil</strong>
+                  <p style={{ color: '#78350f', fontSize: 13, marginTop: 4 }}>Para apostares, precisamos do teu email e telefone.</p>
+                </div>
+                <button className="btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setShowProfileBanner(false)}>✕</button>
+              </div>
+              <form onSubmit={handleUpdateContact}>
+                <div className="two-cols">
+                  <div className="form-group" style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 13 }}>Email</label>
+                    <input type="email" name="email" placeholder="teu@email.com" required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 13 }}>Telefone</label>
+                    <input type="tel" name="phone" placeholder="+351 9XX XXX XXX" required />
+                  </div>
+                </div>
+                <button type="submit" style={{ background: '#f59e0b', width: '100%' }}>Guardar Dados</button>
+              </form>
+            </div>
+          )}
 
           {view === 'games' && (
             <>
@@ -1172,11 +1236,12 @@
                     <thead>
                       <tr>
                         <th>Utilizador</th>
+                        <th>Email</th>
+                        <th>Telefone</th>
                         <th>Estado</th>
                         <th>Apostas</th>
                         <th>Vitórias</th>
                         <th>Ganhos</th>
-                        <th>Registro</th>
                         <th>Ações</th>
                       </tr>
                     </thead>
@@ -1187,6 +1252,16 @@
                             <strong>{u.username}</strong>
                             {parseInt(u.is_admin) === 1 && <span style={{ marginLeft: 6, fontSize: 11, background: 'var(--amarelo)', color: 'var(--azul)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>👑 ADMIN</span>}
                           </td>
+                          <td style={{ fontSize: 12 }}>
+                            {u.email
+                              ? <span>{u.email}</span>
+                              : <span style={{ color: '#f59e0b', fontWeight: 600 }}>⚠️ sem email</span>}
+                          </td>
+                          <td style={{ fontSize: 12 }}>
+                            {u.phone
+                              ? <span>{u.phone}</span>
+                              : <span style={{ color: '#f59e0b', fontWeight: 600 }}>⚠️ sem tel.</span>}
+                          </td>
                           <td>
                             {parseInt(u.approved) === 1
                               ? <span className="badge-approved">✅ Aprovado</span>
@@ -1195,7 +1270,6 @@
                           <td>{u.total_bets || 0}</td>
                           <td>{u.wins || 0}</td>
                           <td>€{parseFloat(u.total_won || 0).toFixed(2)}</td>
-                          <td style={{ fontSize: 12, color: '#888' }}>{new Date(u.created_at).toLocaleDateString('pt-PT')}</td>
                           <td>
                             <div className="user-actions">
                               {parseInt(u.approved) === 0 ? (
@@ -1245,6 +1319,12 @@
                                 setNewPassword('');
                               }}>🔑 Senha</button>
 
+                              <button className="btn-xs" style={{ background: '#7c3aed', color: 'white' }} onClick={() => {
+                                setEditContactId(editContactId === u.id ? null : u.id);
+                                setContactEmail(u.email || '');
+                                setContactPhone(u.phone || '');
+                              }}>✏️ Contato</button>
+
                               {u.id !== user.id && (
                                 <button className="btn-xs btn-xs-red" onClick={async () => {
                                   if (!window.confirm(`Apagar ${u.username}? Esta ação não pode ser revertida.`)) return;
@@ -1276,6 +1356,37 @@
                                   else alert(data.error);
                                 }}>Salvar</button>
                                 <button className="btn-xs btn-xs-gray" onClick={() => setEditPasswordId(null)}>✕</button>
+                              </div>
+                            )}
+
+                            {editContactId === u.id && (
+                              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div className="inline-pwd">
+                                  <input
+                                    type="email"
+                                    placeholder="Email..."
+                                    value={contactEmail}
+                                    onChange={e => setContactEmail(e.target.value)}
+                                  />
+                                </div>
+                                <div className="inline-pwd">
+                                  <input
+                                    type="tel"
+                                    placeholder="Telefone..."
+                                    value={contactPhone}
+                                    onChange={e => setContactPhone(e.target.value)}
+                                  />
+                                  <button className="btn-xs btn-xs-green" onClick={async () => {
+                                    const res = await fetch(`${API_URL}/admin/users/${u.id}/contact`, {
+                                      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                      body: JSON.stringify({ email: contactEmail, phone: contactPhone })
+                                    });
+                                    const data = await res.json();
+                                    if (data.ok) { setEditContactId(null); fetchAdminUsers(); }
+                                    else alert(data.error);
+                                  }}>Salvar</button>
+                                  <button className="btn-xs btn-xs-gray" onClick={() => setEditContactId(null)}>✕</button>
+                                </div>
                               </div>
                             )}
                           </td>

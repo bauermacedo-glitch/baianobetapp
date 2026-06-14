@@ -71,6 +71,9 @@ async function initializeDatabase() {
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS lock_at TIMESTAMP`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approved INTEGER DEFAULT 1`);
     await pool.query(`ALTER TABLE bets ADD COLUMN IF NOT EXISTS payment_approved INTEGER DEFAULT 0`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (email) WHERE email IS NOT NULL`);
     await pool.query(`UPDATE users SET approved = 1 WHERE approved IS NULL`);
     await pool.query(`
       DO $$ BEGIN
@@ -149,21 +152,21 @@ const authenticateToken = (req, res, next) => {
 // =====================
 
 app.post('/api/auth/register', async (req, res) => {
-  const { username, password } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username e password obrigatórios' });
+  const { name, email, phone, password } = req.body;
+
+  if (!name || !email || !phone || !password) {
+    return res.status(400).json({ error: 'Nome, email, telefone e senha são obrigatórios' });
   }
 
   try {
     const countResult = await pool.query('SELECT COUNT(*) as count FROM users');
     const is_admin = parseInt(countResult.rows[0].count) === 0 ? 1 : 0;
-    const approved = is_admin; // primeiro utilizador (admin) aprovado automaticamente; os restantes ficam pendentes
+    const approved = is_admin;
     const hashed = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
-      'INSERT INTO users (username, password, is_admin, approved) VALUES ($1, $2, $3, $4) RETURNING id, username, is_admin, approved',
-      [username, hashed, is_admin, approved]
+      'INSERT INTO users (username, email, phone, password, is_admin, approved) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, email, phone, is_admin, approved',
+      [name, email.toLowerCase().trim(), phone.trim(), hashed, is_admin, approved]
     );
 
     const user = result.rows[0];
@@ -178,27 +181,33 @@ app.post('/api/auth/register', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
+        email: user.email,
+        phone: user.phone,
         is_admin: user.is_admin === 1,
         approved: user.approved === 1
       }
     });
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(400).json({ error: 'Usuário já existe' });
+      return res.status(400).json({ error: 'Este email já está registado' });
     }
     res.status(400).json({ error: err.message });
   }
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { username, password } = req.body;
-  
+  const { email, password } = req.body;
+
   try {
-    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    // Tenta por email primeiro; fallback para username (contas antigas sem email)
+    let result = await pool.query('SELECT * FROM users WHERE email = $1', [email?.toLowerCase?.().trim()]);
+    if (!result.rows[0]) {
+      result = await pool.query('SELECT * FROM users WHERE username = $1', [email]);
+    }
     const user = result.rows[0];
 
     if (!user) {
-      return res.status(400).json({ error: 'Usuário não encontrado' });
+      return res.status(400).json({ error: 'Utilizador não encontrado' });
     }
 
     const match = await bcrypt.compare(password, user.password);
@@ -219,6 +228,8 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
+        email: user.email || null,
+        phone: user.phone || null,
         is_admin,
         approved
       }
@@ -668,7 +679,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
-        u.id, u.username, u.is_admin, u.approved, u.created_at,
+        u.id, u.username, u.email, u.phone, u.is_admin, u.approved, u.created_at,
         COUNT(DISTINCT b.game_id) as total_bets,
         COUNT(DISTINCT CASE WHEN g.winner_id = u.id THEN g.id END) as wins,
         COALESCE(SUM(CASE WHEN g.winner_id = u.id THEN g.main_prize ELSE 0 END), 0) as total_won
@@ -735,6 +746,44 @@ app.put('/api/admin/users/:id/toggle-admin', authenticateToken, async (req, res)
     await pool.query('UPDATE users SET is_admin = $1 WHERE id = $2', [is_admin ? 1 : 0, req.params.id]);
     res.json({ ok: true });
   } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// =====================
+// PERFIL — ATUALIZAR CONTATO PRÓPRIO
+// =====================
+
+app.put('/api/profile/contact', authenticateToken, async (req, res) => {
+  const { email, phone } = req.body;
+  if (!email || !phone) return res.status(400).json({ error: 'Email e telefone são obrigatórios' });
+  try {
+    const result = await pool.query(
+      'UPDATE users SET email = $1, phone = $2 WHERE id = $3 RETURNING id, username, email, phone, is_admin, approved',
+      [email.toLowerCase().trim(), phone.trim(), req.user.id]
+    );
+    res.json({ ok: true, user: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Este email já está em uso' });
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// =====================
+// ADMIN — ATUALIZAR CONTATO DE QUALQUER UTILIZADOR
+// =====================
+
+app.put('/api/admin/users/:id/contact', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const { email, phone } = req.body;
+  try {
+    await pool.query(
+      'UPDATE users SET email = $1, phone = $2 WHERE id = $3',
+      [email ? email.toLowerCase().trim() : null, phone ? phone.trim() : null, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Este email já está em uso' });
     res.status(400).json({ error: err.message });
   }
 });
