@@ -70,6 +70,7 @@ async function initializeDatabase() {
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS bet_value NUMERIC(10,2) DEFAULT 0`);
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS lock_at TIMESTAMP`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS approved INTEGER DEFAULT 1`);
+    await pool.query(`ALTER TABLE bets ADD COLUMN IF NOT EXISTS payment_approved INTEGER DEFAULT 0`);
     await pool.query(`UPDATE users SET approved = 1 WHERE approved IS NULL`);
     await pool.query(`
       DO $$ BEGIN
@@ -420,7 +421,7 @@ app.post('/api/games/:id/close', authenticateToken, async (req, res) => {
     const betsResult = await pool.query(
       `SELECT b.*, u.username, u.id as user_id FROM bets b
        LEFT JOIN users u ON b.user_id = u.id
-       WHERE b.game_id = $1`,
+       WHERE b.game_id = $1 AND b.payment_approved = 1`,
       [gameId]
     );
     
@@ -732,6 +733,21 @@ app.put('/api/admin/users/:id/toggle-admin', authenticateToken, async (req, res)
   const { is_admin } = req.body;
   try {
     await pool.query('UPDATE users SET is_admin = $1 WHERE id = $2', [is_admin ? 1 : 0, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// =====================
+// ADMIN — APROVAÇÃO DE APOSTAS (pagamento)
+// =====================
+
+app.put('/api/admin/bets/:id/approve', authenticateToken, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const { approved } = req.body;
+  try {
+    await pool.query('UPDATE bets SET payment_approved = $1 WHERE id = $2', [approved ? 1 : 0, req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });

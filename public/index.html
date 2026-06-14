@@ -880,7 +880,13 @@
                     return (
                       <div style={{ background: '#f0f7ff', border: '2px solid #667eea', borderRadius: 8, padding: 20, margin: '20px 0' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                          <h3 style={{ margin: 0 }}>✅ Sua Aposta</h3>
+                          <div>
+                            <h3 style={{ margin: 0 }}>✅ Sua Aposta</h3>
+                            {parseInt(myBet.payment_approved) === 1
+                              ? <span style={{ background: '#d4edda', color: '#155724', fontSize: 11, padding: '2px 7px', borderRadius: 10, fontWeight: 700, marginTop: 4, display: 'inline-block' }}>✅ Pagamento confirmado</span>
+                              : <span style={{ background: '#ffe0d0', color: '#c0392b', fontSize: 11, padding: '2px 7px', borderRadius: 10, fontWeight: 700, marginTop: 4, display: 'inline-block' }}>⏳ Aguardando confirmação de pagamento</span>
+                            }
+                          </div>
                           <button className="btn-danger" style={{ fontSize: 13, padding: '8px 14px' }} onClick={handleDeleteMyBet}>
                             🗑️ Apagar e Refazer
                           </button>
@@ -1087,9 +1093,21 @@
                       const others = gameDetails.bets.filter(b => b.user_id !== user.id);
                       const sorted = myBet ? [myBet, ...others] : others;
                       return sorted.map(bet => (
-                        <div key={bet.id} className="bet-card" style={bet.user_id === user.id ? { borderLeftColor: '#667eea', background: '#f0f7ff' } : {}}>
+                        <div key={bet.id} className="bet-card" style={
+                          bet.user_id === user.id
+                            ? { borderLeftColor: '#667eea', background: '#f0f7ff' }
+                            : parseInt(bet.payment_approved) !== 1
+                            ? { borderLeftColor: '#ff6b35', background: '#fff8f5' }
+                            : {}
+                        }>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                            <strong>{bet.username}{bet.user_id === user.id ? ' (você)' : ''}</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <strong>{bet.username}{bet.user_id === user.id ? ' (você)' : ''}</strong>
+                              {parseInt(bet.payment_approved) === 1
+                                ? <span style={{ background: '#d4edda', color: '#155724', fontSize: 11, padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>✅ Pago</span>
+                                : <span style={{ background: '#ffe0d0', color: '#c0392b', fontSize: 11, padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>⏳ Aguard. pagamento</span>
+                              }
+                            </div>
                             <span style={{ fontSize: 11, color: '#999' }}>
                               🕐 {new Date(bet.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                             </span>
@@ -1101,6 +1119,30 @@
                             {gameDetails.game.team_a} 🟨 {bet.yellow_a || 0} 🟥 {bet.red_a || 0} &nbsp;&nbsp;
                             {gameDetails.game.team_b} 🟨 {bet.yellow_b || 0} 🟥 {bet.red_b || 0}
                           </div>
+                          {isAdmin && (
+                            <div style={{ marginTop: 8 }}>
+                              {parseInt(bet.payment_approved) !== 1 ? (
+                                <button className="btn-xs btn-xs-green" onClick={async () => {
+                                  await fetch(`${API_URL}/admin/bets/${bet.id}/approve`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                    body: JSON.stringify({ approved: true })
+                                  });
+                                  selectGame(selectedGame);
+                                }}>✅ Confirmar Pagamento</button>
+                              ) : (
+                                <button className="btn-xs btn-xs-gray" onClick={async () => {
+                                  if (!window.confirm('Revogar aprovação de pagamento?')) return;
+                                  await fetch(`${API_URL}/admin/bets/${bet.id}/approve`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                    body: JSON.stringify({ approved: false })
+                                  });
+                                  selectGame(selectedGame);
+                                }}>↩ Revogar</button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ));
                     })()
@@ -1248,6 +1290,7 @@
 
           {view === 'rules' && (
             <div>
+              <button onClick={() => setView('games')} className="btn-secondary" style={{ marginBottom: 16 }}>← Voltar</button>
               <div className="card" style={{ borderTop: '4px solid var(--amarelo)' }}>
                 <h2 style={{ fontFamily: "'Ultra', serif", color: 'var(--azul)', marginBottom: 6 }}>📖 Como Funciona o BaianoBet</h2>
                 <p style={{ color: '#555', marginBottom: 0 }}>Bolão de apostas para os jogos da Seleção Brasileira na Copa do Mundo 2026.</p>
@@ -1339,7 +1382,7 @@
             <div className="modal-overlay" onClick={() => setMbwayModal(null)}>
               <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-title">💳 Pagamento MBWay</div>
-                <p style={{ color: '#555', marginBottom: 4 }}>Aposta registrada! Faz a transferência para confirmar a tua participação:</p>
+                <p style={{ color: '#555', marginBottom: 4 }}>Aposta registrada! Faz a transferência para confirmar a tua participação. <strong>O administrador vai validar o pagamento antes de a aposta ser aceite.</strong></p>
                 <div className="mbway-box">
                   <div className="mbway-logo">MB WAY</div>
                   <div className="mbway-amount">€{mbwayModal.value}</div>
@@ -1351,8 +1394,11 @@
                     alert('Número copiado! 📋');
                   }}>📋 Copiar número</button>
                 </div>
+                <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8, padding: '10px 14px', marginTop: 12, fontSize: 13, color: '#856404' }}>
+                  ⏳ A tua aposta ficará <strong>pendente</strong> até o administrador confirmar o pagamento.
+                </div>
                 <button className="btn-mbway-confirm" onClick={() => setMbwayModal(null)}>
-                  ✅ Já fiz a transferência!
+                  ✅ Ok, já fiz a transferência!
                 </button>
               </div>
             </div>
