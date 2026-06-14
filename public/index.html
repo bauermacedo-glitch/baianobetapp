@@ -564,6 +564,7 @@
                 <button className="tab active" onClick={() => setView('games')}>📋 Jogos</button>
                 <button className="tab" onClick={() => setView('leaderboard')}>🏆 Leaderboard</button>
                 <button className="tab" onClick={() => setView('my-stats')}>📊 Minhas Stats</button>
+                <button className="tab" onClick={() => setView('rules')}>📖 Regras</button>
                 {isAdmin && <button className="tab" onClick={() => setView('admin-dashboard')}>⚙️ Dashboard Admin</button>}
                 {isAdmin && (
                   <button className="tab" onClick={() => { setView('admin-users'); fetchAdminUsers(); }}>
@@ -1241,6 +1242,95 @@
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {view === 'rules' && (
+            <div>
+              <div className="card" style={{ borderTop: '4px solid var(--amarelo)' }}>
+                <h2 style={{ fontFamily: "'Ultra', serif", color: 'var(--azul)', marginBottom: 6 }}>📖 Como Funciona o BaianoBet</h2>
+                <p style={{ color: '#555', marginBottom: 0 }}>Bolão de apostas para os jogos da Seleção Brasileira na Copa do Mundo 2026.</p>
+              </div>
+
+              <div className="card">
+                <h3 style={{ color: 'var(--verde)', marginBottom: 12 }}>⚽ Participação</h3>
+                <p>Antes de cada jogo da Seleção, um novo bolão é aberto. Cada apostador faz <strong>uma aposta por jogo</strong>, preenchendo o palpite e transferindo o valor via MBWay.</p>
+                <p style={{ marginTop: 10 }}>Pode apagar e refazer a aposta quantas vezes quiser <strong>até o bloqueio</strong> — quando o jogo fechar para apostas, o que está registrado é definitivo.</p>
+                <div style={{ background: '#f0faf3', border: '1px solid var(--verde)', borderRadius: 8, padding: '12px 16px', marginTop: 14 }}>
+                  <strong>📲 Pagamento MBWay</strong><br />
+                  <span style={{ fontSize: 15 }}>Bauer Macedo — <strong>969 736 933</strong></span><br />
+                  <span style={{ fontSize: 13, color: '#555' }}>Use o nome do jogo como referência na transferência.</span>
+                </div>
+              </div>
+
+              <div className="card">
+                <h3 style={{ color: 'var(--verde)', marginBottom: 12 }}>🎯 O que preencher na aposta</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 22, minWidth: 32 }}>⚽</span>
+                    <div><strong>Placar final</strong> — quantos gols cada time vai marcar.</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 22, minWidth: 32 }}>👟</span>
+                    <div><strong>Marcadores de gols</strong> — quem vai marcar cada gol (aparece automaticamente quando o placar é maior que 0).</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 22, minWidth: 32 }}>🟨</span>
+                    <div><strong>Cartões</strong> — quantidade de amarelos e vermelhos que cada time vai levar.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <h3 style={{ color: 'var(--verde)', marginBottom: 16 }}>🏆 Quem ganha?</h3>
+                <p style={{ color: '#555', marginBottom: 16 }}>A aposta mais próxima do resultado real leva o prêmio. A seleção do vencedor segue esta ordem:</p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: 8, padding: '12px 16px', borderLeft: '4px solid var(--amarelo)' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>🥇 1º — Placar exato</div>
+                    <div style={{ fontSize: 13, color: '#555' }}>Acertou 3x1? Você já está na frente de todo mundo.</div>
+                  </div>
+                  <div style={{ textAlign: 'center', color: '#999', fontSize: 13 }}>Se mais de um acertou o placar exato, desempata por:</div>
+                  <div style={{ background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: 8, padding: '12px 16px', paddingLeft: 28, borderLeft: '4px solid #aaa' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>👟 Marcadores de gols</div>
+                    <div style={{ fontSize: 13, color: '#555' }}>Acertou quem fez os gols além do placar? Vantagem sua.</div>
+                  </div>
+                  <div style={{ background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: 8, padding: '12px 16px', paddingLeft: 28, borderLeft: '4px solid #aaa' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>🟨 Cartões</div>
+                    <div style={{ fontSize: 13, color: '#555' }}>Acertou a quantidade de amarelos e vermelhos por time.</div>
+                  </div>
+                  <div style={{ background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: 8, padding: '12px 16px', paddingLeft: 28, borderLeft: '4px solid #aaa' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>⏱️ Quem apostou primeiro</div>
+                    <div style={{ fontSize: 13, color: '#555' }}>Último critério. Procrastinar pode custar a vitória.</div>
+                  </div>
+
+                  <div style={{ textAlign: 'center', color: '#999', fontSize: 13, marginTop: 4 }}>Se ninguém acertou o placar exato, a classificação é por:</div>
+                  {[
+                    ['↔️', 'Mesma diferença de gols', 'Resultado 3x1 (diff=2): apostas como 2x0, 4x2 ou 5x3 entram neste grupo.'],
+                    ['⚽', 'Gols do vencedor', 'Acertou que o Brasil ia marcar 3, mesmo que o adversário não fosse 1.'],
+                    ['⚽', 'Gols do perdedor', 'Acertou que o adversário ia levar 1 gol, mesmo errando o do Brasil.'],
+                    ['👟', 'Marcadores de gols', 'Desempate dentro do grupo mais próximo.'],
+                    ['🟨', 'Cartões', 'Desempate por quantidade de cartões acertados.'],
+                    ['⏱️', 'Quem apostou primeiro', 'No pior caso, vence o mais rápido do grupo.'],
+                  ].map(([icon, title, desc]) => (
+                    <div key={title} style={{ background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: 8, padding: '12px 16px', paddingLeft: 28, borderLeft: '4px solid #ddd' }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>{icon} {title}</div>
+                      <div style={{ fontSize: 13, color: '#555' }}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: '#fffacd', border: '1px solid #ffd700', borderRadius: 8, padding: '12px 16px', marginTop: 16 }}>
+                  <strong>⚠️ Sempre sai um vencedor</strong> — mesmo que todo mundo erre feio, alguém vai ganhar o prêmio.
+                </div>
+              </div>
+
+              <div className="card">
+                <h3 style={{ color: 'var(--verde)', marginBottom: 12 }}>💰 Prêmio</h3>
+                <p><strong>95%</strong> do valor total arrecadado vai para o vencedor do bolão.</p>
+                <p style={{ marginTop: 8 }}><strong>5%</strong> fica retido pela BaianoBet (taxa de administração).</p>
+                <p style={{ marginTop: 8, color: '#555', fontSize: 13 }}>Exemplo: 10 pessoas apostam €5 → pote de €50 → vencedor leva <strong>€47,50</strong>.</p>
               </div>
             </div>
           )}
