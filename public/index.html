@@ -108,7 +108,16 @@
 
     const PLAYERS = {
       brasil: ["Ninguém", "Alisson", "Ederson", "Weverton", "Alex Sandro", "Bremer", "Danilo", "Douglas Santos", "Gabriel Magalhães", "Ibañez", "Léo Pereira", "Marquinhos", "Wesley", "Bruno Guimarães", "Casemiro", "Danilo Santos", "Fabinho", "Lucas Paquetá", "Endrick", "Gabriel Martinelli", "Igor Thiago", "Luiz Henrique", "Matheus Cunha", "Neymar", "Raphinha", "Rayan", "Vini Jr."],
-      marrocos: ["Ninguém", "Bounou", "El Kajoui", "Tagnaouti", "Mazraoui", "Salah-Eddine", "Belammari", "Hakimi", "El Ouahdi", "Aguerd", "Riad", "Halhal", "Diop", "El Mourabet", "Bouaddi", "El Aynaoui", "Amrabat", "Ounahi", "El Khannouss", "Saibari", "Ez Abde", "Talbi", "Rahimi", "El Kaabi", "Brahim Díaz", "Gessime", "Echghouyabe"]
+      marrocos: ["Ninguém", "Bounou", "El Kajoui", "Tagnaouti", "Mazraoui", "Salah-Eddine", "Belammari", "Hakimi", "El Ouahdi", "Aguerd", "Riad", "Halhal", "Diop", "El Mourabet", "Bouaddi", "El Aynaoui", "Amrabat", "Ounahi", "El Khannouss", "Saibari", "Ez Abde", "Talbi", "Rahimi", "El Kaabi", "Brahim Díaz", "Gessime", "Echghouyabe"],
+      haiti: ["Ninguém", "Josue Duverger", "Alexandre Pierre", "Johny Placide", "Ricardo Ade", "Carlens Arcus", "Hannes Delcroix", "Jean-Kevin Duverne", "Martin Experience", "Duke Lacroix", "Wilguens Paugain", "Keeto Thermoncy", "Carl Fred Sainte", "Jean-Ricner Bellegarde", "Leverton Pierre", "Danley Jean Jacques", "Woodensky Pierre", "Dominique Simon", "Josue Casimir", "Louicius Deedson", "Derrick Etienne Jr.", "Yassin Fortune", "Wilson Isidor", "Lenny Joseph", "Duckens Nazon", "Frantzdy Pierrot", "Ruben Providence"]
+    };
+
+    // Lookup dinâmico: normaliza nome do time e busca lista de jogadores
+    const getPlayers = (teamName) => {
+      if (!teamName) return ["Ninguém"];
+      const key = teamName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const found = Object.keys(PLAYERS).find(k => key.includes(k) || k.includes(key));
+      return found ? PLAYERS[found] : ["Ninguém"];
     };
 
     function BaianoBetApp() {
@@ -934,7 +943,7 @@
                               <label>Gol {i + 1}</label>
                               <select name={`gol_a_${i}`} required>
                                 <option value="">-- Selecione --</option>
-                                {PLAYERS.brasil.map(p => (
+                                {getPlayers(gameDetails.game.team_a).map(p => (
                                   <option key={p} value={p}>{p}</option>
                                 ))}
                               </select>
@@ -951,7 +960,7 @@
                               <label>Gol {i + 1}</label>
                               <select name={`gol_b_${i}`} required>
                                 <option value="">-- Selecione --</option>
-                                {PLAYERS.marrocos.map(p => (
+                                {getPlayers(gameDetails.game.team_b).map(p => (
                                   <option key={p} value={p}>{p}</option>
                                 ))}
                               </select>
