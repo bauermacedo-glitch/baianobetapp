@@ -581,7 +581,10 @@
             <div className="pending-screen">
               <div style={{ fontSize: 64, marginBottom: 16 }}>⏳</div>
               <h2>Conta Pendente</h2>
-              <p>O teu registo foi recebido! Aguarda a aprovação do administrador para começares a apostar.</p>
+              <p>O teu registo foi recebido! O administrador vai aprovar a tua conta em breve.</p>
+              <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: '16px 20px', marginBottom: 24, maxWidth: 360, margin: '0 auto 24px auto' }}>
+                <p style={{ marginBottom: 8 }}>✅ Assim que aprovado, clica em <strong>Sair</strong> abaixo e volta a fazer login para acederes ao bolão.</p>
+              </div>
               <button className="btn-secondary" onClick={handleLogout}>Sair</button>
             </div>
           </div>
